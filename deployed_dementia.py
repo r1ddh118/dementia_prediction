@@ -1,4 +1,3 @@
-from imblearn.over_sampling import SMOTE
 from sklearn.feature_selection import RFE
 from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from xgboost import XGBClassifier
@@ -33,7 +32,7 @@ class DementiaPrediction:
         if "selector" not in st.session_state:
             st.session_state.selector = None
 
-    
+    #loading and merging of data
     def load_and_merge_data(self, uploaded_files):
         try:
             if not all(uploaded_files.values()):
@@ -153,14 +152,10 @@ class DementiaPrediction:
 
         selector = RFE(RandomForestClassifier(n_estimators=100, random_state=42), n_features_to_select=8)
         X = selector.fit_transform(X, y)
-
-        try:
-            smote = SMOTE(random_state=42)
-            X, y = smote.fit_resample(X, y)
-        except ValueError:
-            st.warning("SMOTE failed due to insufficient samples. Using RandomOverSampler instead.")
-            ros = RandomOverSampler(random_state=42)
-            X, y = ros.fit_resample(X, y)
+        
+        #performing random sampling
+        ros = RandomOverSampler(random_state=42)
+        X, y = ros.fit_resample(X, y)
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 

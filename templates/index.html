@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dementia Prediction</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 1.5rem;
+        }
+        form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+        input, select {
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        button {
+            grid-column: 1 / -1;
+            padding: 0.8rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 4px;
+            background-color: #e9ecef;
+            text-align: center;
+        }
+        .result h2 {
+            margin: 0;
+            color: #007bff;
+        }
+        .result p {
+            margin: 0.5rem 0 0;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dementia Prediction</h1>
+        <form id="prediction-form">
+            <div class="form-group">
+                <label for="age">Age</label>
+                <input type="number" id="age" name="age" value="70" required>
+            </div>
+            <div class="form-group">
+                <label for="sex">Sex</label>
+                <select id="sex" name="sex" required>
+                    <option value="0">Male</option>
+                    <option value="1">Female</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="education">Years of Education</label>
+                <input type="number" id="education" name="education" value="12" required>
+            </div>
+            <div class="form-group">
+                <label for="ses">SES (1-5)</label>
+                <input type="number" id="ses" name="ses" value="3" step="1" min="1" max="5" required>
+            </div>
+            <div class="form-group">
+                <label for="mmse">MMSE Score (0-30)</label>
+                <input type="number" id="mmse" name="mmse" value="25" step="1" min="0" max="30" required>
+            </div>
+            <div class="form-group">
+                <label for="etiv">eTIV (Brain Volume)</label>
+                <input type="number" id="etiv" name="etiv" value="1500" required>
+            </div>
+            <div class="form-group">
+                <label for="nwbv">nWBV (Normalized Brain Volume)</label>
+                <input type="number" id="nwbv" name="nwbv" value="0.75" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="asf">ASF (Atlas Scaling Factor)</label>
+                <input type="number" id="asf" name="asf" value="1.10" step="0.01" required>
+            </div>
+            <button type="submit">Predict</button>
+        </form>
+        <div id="result-container" class="result" style="display: none;">
+            <h2>Prediction: <span id="prediction-result"></span></h2>
+            <p>Probabilities:</p>
+            <pre id="probabilities-result"></pre>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('prediction-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch('/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    document.getElementById('prediction-result').textContent = data.prediction;
+                    document.getElementById('probabilities-result').textContent = JSON.stringify(data.probabilities, null, 2);
+                    document.getElementById('result-container').style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please check the console for details.');
+            });
+        });
+    </script>
+</body>
+</html>

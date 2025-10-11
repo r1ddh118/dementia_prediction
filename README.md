@@ -80,10 +80,3 @@ These datasets contain demographic information, clinical assessments (like MMSE 
     docker run -p 5000:5000 dementia-prediction-app
     ```
     The application will be available at **http://localhost:5000**.
-
-## Future Enhancements
-- Experiment with different models (XGBoost, SVM, etc.) and compare performance.
-- Implement more advanced feature engineering techniques.
-- Enhance the frontend for better visualization of results.
-- Deploy the container to a cloud service like AWS App Runner or ECS.
-- Incorporate Explainable AI (XAI) techniques (e.g., SHAP) to interpret model decisions.

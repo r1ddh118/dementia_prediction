@@ -7,15 +7,15 @@ from imblearn.over_sampling import RandomOverSampler
 import joblib
 import os
 
-def train():
+def train(dataset_dir="datasets", model_dir="model"):
     print("Starting model training process...")
 
     # --- 1. Load and Merge Data ---
     print("Loading and merging datasets...")
     try:
-        df_longitudinal = pd.read_excel("datasets/oasis_longitudinal_demographics-8d83e569fa2e2d30.xlsx", engine="openpyxl")
-        df_cross_sectional = pd.read_excel("datasets/oasis_cross-sectional-5708aa0a98d82080.xlsx", engine="openpyxl")
-        df_reliability = pd.read_excel("datasets/oasis_cross-sectional-reliability-063c8642b909ee76.xlsx", engine="openpyxl")
+        df_longitudinal = pd.read_excel(os.path.join(dataset_dir, "oasis_longitudinal_demographics-8d83e569fa2e2d30.xlsx"), engine="openpyxl")
+        df_cross_sectional = pd.read_excel(os.path.join(dataset_dir, "oasis_cross-sectional-5708aa0a98d82080.xlsx"), engine="openpyxl")
+        df_reliability = pd.read_excel(os.path.join(dataset_dir, "oasis_cross-sectional-reliability-063c8642b909ee76.xlsx"), engine="openpyxl")
     except FileNotFoundError as e:
         print(f"Error: Dataset file not found. Make sure the 'datasets' folder is in the correct location. Details: {e}")
         return
@@ -83,13 +83,13 @@ def train():
 
     # --- 4. Save Artifacts ---
     print("Saving model and preprocessing artifacts...")
-    os.makedirs('model', exist_ok=True)
-    joblib.dump(model, "model/dementia_model.joblib")
-    joblib.dump(scaler, "model/scaler.joblib")
-    joblib.dump(label_encoder, "model/label_encoder.joblib")
-    joblib.dump(selector, "model/selector.joblib")
+    os.makedirs(model_dir, exist_ok=True)
+    joblib.dump(model, os.path.join(model_dir, "dementia_model.joblib"))
+    joblib.dump(scaler, os.path.join(model_dir, "scaler.joblib"))
+    joblib.dump(label_encoder, os.path.join(model_dir, "label_encoder.joblib"))
+    joblib.dump(selector, os.path.join(model_dir, "selector.joblib"))
     
-    print("Artifacts saved successfully in the 'model' directory.")
+    print(f"Artifacts saved successfully in '{model_dir}'.")
     print("Training process finished.")
 
 if __name__ == '__main__':

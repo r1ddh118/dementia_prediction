@@ -2,20 +2,24 @@ from flask import Flask, request, render_template, jsonify
 import joblib
 import numpy as np
 import os
+from pathlib import Path
 
-app = Flask(__name__)
+BASE_DIR = Path(__file__).resolve().parent.parent
+MODEL_DIR = Path(os.environ.get("MODEL_DIR", BASE_DIR / "model"))
+
+app = Flask(__name__, template_folder=str(BASE_DIR / "templates"))
 
 # --- Load Model and Preprocessing Artifacts ---
 try:
-    model = joblib.load("model/dementia_model.joblib")
-    scaler = joblib.load("model/scaler.joblib")
-    label_encoder = joblib.load("model/label_encoder.joblib")
-    selector = joblib.load("model/selector.joblib")
+    model = joblib.load(MODEL_DIR / "dementia_model.joblib")
+    scaler = joblib.load(MODEL_DIR / "scaler.joblib")
+    label_encoder = joblib.load(MODEL_DIR / "label_encoder.joblib")
+    selector = joblib.load(MODEL_DIR / "selector.joblib")
     print("Model and artifacts loaded successfully.")
 except FileNotFoundError as e:
     print(f"Error loading model artifacts: {e}")
     print("Please run train.py to generate the model artifacts.")
-    model = None # Set to None to handle gracefully
+    model = None  # Set to None to handle gracefully
 
 @app.route('/')
 def home():
@@ -64,7 +68,7 @@ def predict():
 
 if __name__ == '__main__':
     # Before running for the first time, make sure to run train.py
-    if not os.path.exists('model/dementia_model.joblib'):
+    if not (MODEL_DIR / "dementia_model.joblib").exists():
         print("Model not found. Please run train.py first to train and save the model.")
     else:
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        app.run(host='0.0.0.0', port=5000, debug=os.environ.get("FLASK_DEBUG") == "1")

@@ -80,3 +80,24 @@ These datasets contain demographic information, clinical assessments (like MMSE 
     docker run -p 5000:5000 dementia-prediction-app
     ```
     The application will be available at **http://localhost:5000**.
+
+## CI/CD (GitHub Actions)
+
+Two separate workflows live in `.github/workflows/`:
+
+| File | Trigger | What it does |
+|------|---------|--------------|
+| `ci.yml` | push / PR to `main`, `develop` | flake8 + hadolint, `pytest` (model artifacts, Flask app, template, training, registry script), Docker build + smoke test. Needs **no** AWS access. |
+| `cd.yml` | CI succeeded on `main` (or manual run) | 1) upload `model/` to the S3 model registry, 2) build the Docker image which downloads that exact model version from the registry and push it to ECR, 3) SSH to EC2, pull and run the container on port 80 (with health check + rollback). |
+
+### Repository secrets (Settings -> Secrets and variables -> Actions)
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `MODEL_REGISTRY_BUCKET`, `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`
+
+### EC2 prerequisites
+Docker installed, `EC2_USER` in the `docker` group, `curl` installed, security group allows inbound 22 (SSH) and 80 (HTTP).
+
+### Run tests locally
+```bash
+pip install -r requirements-dev.txt
+pytest
+```

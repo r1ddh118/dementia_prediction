@@ -1,0 +1,10 @@
+.git
+.github
+datasets
+tests
+__pycache__
+*.pyc
+.pytest_cache
+.coverage
+coverage.xml
+README.md

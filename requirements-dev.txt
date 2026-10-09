@@ -1,0 +1,7 @@
+-r requirements.txt
+boto3
+moto[s3]>=5
+pytest
+pytest-cov
+flake8
+pyyaml

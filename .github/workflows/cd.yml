@@ -170,6 +170,11 @@ jobs:
           for i in $(seq 1 120); do
             if curl -fsS "$APP_URL/" >/dev/null 2>&1; then
               echo "Deployment healthy: $APP_URL"
+              {
+                echo "### App preview"
+                echo "[$APP_URL]($APP_URL)"
+                echo "EC2 instance: \`$INSTANCE_ID\`"
+              } >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
             sleep 5

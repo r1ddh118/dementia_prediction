@@ -32,4 +32,4 @@ ENV MODEL_DIR=/app/model PYTHONUNBUFFERED=1
 EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/')" || exit 1
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--chdir", "src", "app:app"]
+CMD ["gunicorn", "--workers", "1", "--threads", "2", "--access-logfile", "-", "--error-logfile", "-", "--bind", "0.0.0.0:5000", "--chdir", "src", "app:app"]

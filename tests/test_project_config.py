@@ -7,6 +7,7 @@ import yaml
 def test_dockerfile_gunicorn_target_exists(root):
     df = (root / "Dockerfile").read_text()
     assert "gunicorn" in df
+    assert '"--workers", "1"' in df
     assert "--chdir" in df and "src" in df and "app:app" in df
     assert (root / "src" / "app.py").is_file()
 
@@ -49,6 +50,15 @@ def test_ec2_template_creates_public_app_host_with_ecr_access(root):
     assert "ecr:GetAuthorizationToken" in template
     assert "docker pull ${ImageUri}" in template
     assert "0.0.0.0/0" in template
+
+
+def test_cd_copies_s3_model_into_the_pushed_ecr_image(root):
+    cd = (root / ".github" / "workflows" / "cd.yml").read_text()
+    dockerfile = (root / "Dockerfile").read_text()
+    assert "MODEL_STAGE=model-registry" in cd
+    assert "push: true" in cd
+    assert "${{ env.ECR_REPOSITORY }}:${{ env.SHA }}" in cd
+    assert "COPY --from=model-source /model/ ./model/" in dockerfile
 
 
 def test_cd_jobs_use_production_environment_secrets(root):

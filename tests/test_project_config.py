@@ -35,12 +35,20 @@ def test_cd_uses_required_secrets(root):
         assert f"secrets.{s}" in cd
 
 
-def test_cd_skips_ec2_deploy_when_host_configuration_is_missing(root):
+def test_cd_provisions_ec2_instead_of_skipping_when_host_is_missing(root):
     cd = (root / ".github" / "workflows" / "cd.yml").read_text()
-    assert "id: deploy_config" in cd
-    assert 'echo "ready=false" >> "$GITHUB_OUTPUT"' in cd
-    assert "Skipping EC2 deployment" in cd
-    assert cd.count("if: steps.deploy_config.outputs.ready == 'true'") == 4
+    assert "aws cloudformation deploy" in cd
+    assert "--template-file infra/ec2-app.yml" in cd
+    assert "EC2_HOST" not in cd
+
+
+def test_ec2_template_creates_public_app_host_with_ecr_access(root):
+    template = (root / "infra" / "ec2-app.yml").read_text()
+    assert "Type: AWS::EC2::Instance" in template
+    assert "InstanceType: t3.micro" in template
+    assert "ecr:GetAuthorizationToken" in template
+    assert "docker pull ${ImageUri}" in template
+    assert "0.0.0.0/0" in template
 
 
 def test_cd_jobs_use_production_environment_secrets(root):

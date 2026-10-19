@@ -124,113 +124,55 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ---------------------------------------------------------------- 3. run the container on EC2
+  # ---------------------------------------------------------------- 3. provision the app host and deploy
   deploy:
-    name: Deploy to EC2
+    name: Provision EC2 + deploy
     needs: build-and-push
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Check deployment configuration
-        id: deploy_config
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-        run: |
-          if [[ -n "$EC2_HOST" && -n "$EC2_USER" && -n "$EC2_SSH_KEY" ]]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping EC2 deployment because EC2_HOST, EC2_USER, and EC2_SSH_KEY must all be configured."
-          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
 
       - name: Configure AWS credentials
-        if: steps.deploy_config.outputs.ready == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_SECRET_ACCESS }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # (registry URL is recomputed here on purpose: job outputs that contain
-      #  a secret value, such as the region, are dropped by GitHub)
-      - name: Get ECR registry
-        id: ecr
-        if: steps.deploy_config.outputs.ready == 'true'
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Set up SSH
-        if: steps.deploy_config.outputs.ready == 'true'
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      - name: Create or update EC2 app stack
         run: |
           set -euo pipefail
-          : "${EC2_HOST:?Missing repository/environment secret EC2_HOST}"
-          : "${EC2_SSH_KEY:?Missing repository/environment secret EC2_SSH_KEY}"
+          REGISTRY_URI="$(aws ecr describe-repositories \
+            --repository-names "$ECR_REPOSITORY" \
+            --query 'repositories[0].repositoryUri' --output text)"
+          IMAGE_URI="$REGISTRY_URI:$SHA"
 
-          SSH_DIR="$RUNNER_TEMP/cd-ssh"
-          install -d -m 700 "$SSH_DIR"
-          printf '%s\n' "$EC2_SSH_KEY" | tr -d '\r' > "$SSH_DIR/ec2_key"
-          chmod 600 "$SSH_DIR/ec2_key"
-          ssh-keygen -y -f "$SSH_DIR/ec2_key" >/dev/null
+          aws cloudformation deploy \
+            --template-file infra/ec2-app.yml \
+            --stack-name dementia-prediction \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides "ImageUri=$IMAGE_URI" "ContainerName=$CONTAINER_NAME"
 
-          if ! ssh-keyscan -T 15 -H "$EC2_HOST" > "$SSH_DIR/known_hosts" 2>/dev/null; then
-            echo "Could not resolve or reach EC2_HOST '$EC2_HOST' on SSH port 22."
-            exit 1
-          fi
-          chmod 600 "$SSH_DIR/known_hosts"
+          APP_URL="$(aws cloudformation describe-stacks \
+            --stack-name dementia-prediction \
+            --query 'Stacks[0].Outputs[?OutputKey==`AppUrl`].OutputValue | [0]' \
+            --output text)"
+          INSTANCE_ID="$(aws cloudformation describe-stacks \
+            --stack-name dementia-prediction \
+            --query 'Stacks[0].Outputs[?OutputKey==`InstanceId`].OutputValue | [0]' \
+            --output text)"
 
-      - name: Deploy container
-        if: steps.deploy_config.outputs.ready == 'true'
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
-        run: |
-          set -euo pipefail
-          : "${EC2_HOST:?Missing repository/environment secret EC2_HOST}"
-          : "${EC2_USER:?Missing repository/environment secret EC2_USER}"
-
-          SSH_DIR="$RUNNER_TEMP/cd-ssh"
-          SSH="ssh -i $SSH_DIR/ec2_key -o UserKnownHostsFile=$SSH_DIR/known_hosts -o StrictHostKeyChecking=yes"
-          IMAGE="$REGISTRY/$ECR_REPOSITORY:$SHA"
-          REMOTE="$EC2_USER@$EC2_HOST"
-
-          # Short-lived ECR token generated here; nothing persisted on the server
-          aws ecr get-login-password --region "$AWS_REGION" \
-            | $SSH "$REMOTE" "docker login --username AWS --password-stdin $REGISTRY"
-
-          $SSH "$REMOTE" bash -s -- "$IMAGE" "$CONTAINER_NAME" <<'REMOTE'
-          set -euo pipefail
-          IMAGE="$1"; NAME="$2"
-
-          docker pull "$IMAGE"
-
-          PREV_IMAGE=$(docker inspect --format '{{.Config.Image}}' "$NAME" 2>/dev/null || true)
-          docker rm -f "$NAME" >/dev/null 2>&1 || true
-
-          docker run -d --name "$NAME" --restart unless-stopped -p 80:5000 "$IMAGE"
-
-          for i in $(seq 1 30); do
-            if curl -fs http://localhost:80/ >/dev/null; then
-              echo "Deployment healthy: $IMAGE"
-              docker image prune -f >/dev/null
+          echo "Waiting for $APP_URL to become healthy (instance $INSTANCE_ID)."
+          for i in $(seq 1 120); do
+            if curl -fsS "$APP_URL/" >/dev/null; then
+              echo "Deployment healthy: $APP_URL"
               exit 0
             fi
-            sleep 2
+            sleep 5
           done
 
-          echo "Health check failed, logs:"; docker logs "$NAME" || true
-          docker rm -f "$NAME" >/dev/null 2>&1 || true
-          if [ -n "$PREV_IMAGE" ]; then
-            echo "Rolling back to $PREV_IMAGE"
-            docker run -d --name "$NAME" --restart unless-stopped -p 80:5000 "$PREV_IMAGE"
-          fi
+          echo "App health check failed at $APP_URL on instance $INSTANCE_ID."
           exit 1
-          REMOTE
-
-      - name: Cleanup SSH key
-        if: always() && steps.deploy_config.outputs.ready == 'true'
-        run: rm -rf "$RUNNER_TEMP/cd-ssh"

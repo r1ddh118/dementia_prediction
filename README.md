@@ -87,8 +87,8 @@ These datasets contain demographic information, clinical assessments (like MMSE 
 
 `ci.yml` runs linting, project tests, and a Docker build and smoke test on pushes and pull requests to `main` and `develop`. CI uses the checked-in model under `model/` and does not need AWS credentials.
 
-`cd.yml` runs after successful CI on `main` or by manual dispatch. It uploads the model artifacts to the versioned S3 registry, builds and pushes the matching Docker image to ECR, then deploys it to EC2 with a health check and rollback.
+`cd.yml` runs after successful CI on `main` or by manual dispatch. It uploads the model artifacts to the versioned S3 registry, builds and pushes the matching Docker image to ECR, then uses `infra/ec2-app.yml` to create or update a VPC and a public `t3.micro` EC2 app host. The instance pulls its image from ECR using an attached IAM role, and the workflow checks the public app URL after deployment. The stack is persistent and subsequent runs update it.
 
-Configure these GitHub Actions secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `MODEL_REGISTRY_BUCKET`, `EC2_HOST`, `EC2_USER`, and `EC2_SSH_KEY`. The EC2 host needs Docker and curl, and its security group must allow SSH on port 22 and HTTP on port 80.
+Add these GitHub Actions secrets to the `production` environment: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `MODEL_REGISTRY_BUCKET`. The AWS credentials need access to S3 and ECR, plus permissions for CloudFormation, EC2/VPC, and IAM role/instance-profile creation and passing. The workflow opens public HTTP on port 80; it does not open SSH. `EC2_HOST`, `EC2_USER`, and `EC2_SSH_KEY` are not used because CD provisions and configures the host itself. The EC2 instance and related AWS resources remain billable until the CloudFormation stack is deleted.
 
 For a local Docker build, run `docker build -t dementia-prediction-app .`; it uses `model/` by default. The CD workflow selects the registry model stage when building its production image.

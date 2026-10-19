@@ -5,7 +5,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import RFE
 from imblearn.over_sampling import RandomOverSampler
 import joblib
-import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent

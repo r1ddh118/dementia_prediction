@@ -91,7 +91,7 @@ Two separate workflows live in `.github/workflows/`:
 | `cd.yml` | CI succeeded on `main` (or manual run) | 1) upload `model/` to the S3 model registry, 2) build the Docker image which downloads that exact model version from the registry and push it to ECR, 3) SSH to EC2, pull and run the container on port 80 (with health check + rollback). |
 
 ### Repository secrets (Settings -> Secrets and variables -> Actions)
-`AWS_SECRET_ACCESS` (AWS access key ID), `AWS_SECRET_ACCESS_KEY` (AWS secret access key), `AWS_REGION`, `MODEL_REGISTRY_BUCKET`, `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`
+`AWS_ACCESS_KEY_ID` (AWS access key ID; `AWS_SECRET_ACCESS` is accepted as a legacy fallback), `AWS_SECRET_ACCESS_KEY` (AWS secret access key), `AWS_REGION`, `MODEL_REGISTRY_BUCKET`, `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`
 
 ### EC2 prerequisites
 Docker installed, `EC2_USER` in the `docker` group, `curl` installed, security group allows inbound 22 (SSH) and 80 (HTTP).

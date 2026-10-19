@@ -6,16 +6,22 @@ from sklearn.feature_selection import RFE
 from imblearn.over_sampling import RandomOverSampler
 import joblib
 import os
+from pathlib import Path
 
-def train(dataset_dir="datasets", model_dir="model"):
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def train(dataset_dir=None, model_dir=None):
     print("Starting model training process...")
 
     # --- 1. Load and Merge Data ---
     print("Loading and merging datasets...")
+    dataset_dir = Path(dataset_dir) if dataset_dir else BASE_DIR / "datasets"
+    model_dir = Path(model_dir) if model_dir else BASE_DIR / "model"
     try:
-        df_longitudinal = pd.read_excel(os.path.join(dataset_dir, "oasis_longitudinal_demographics-8d83e569fa2e2d30.xlsx"), engine="openpyxl")
-        df_cross_sectional = pd.read_excel(os.path.join(dataset_dir, "oasis_cross-sectional-5708aa0a98d82080.xlsx"), engine="openpyxl")
-        df_reliability = pd.read_excel(os.path.join(dataset_dir, "oasis_cross-sectional-reliability-063c8642b909ee76.xlsx"), engine="openpyxl")
+        df_longitudinal = pd.read_excel(dataset_dir / "oasis_longitudinal_demographics-8d83e569fa2e2d30.xlsx", engine="openpyxl")
+        df_cross_sectional = pd.read_excel(dataset_dir / "oasis_cross-sectional-5708aa0a98d82080.xlsx", engine="openpyxl")
+        df_reliability = pd.read_excel(dataset_dir / "oasis_cross-sectional-reliability-063c8642b909ee76.xlsx", engine="openpyxl")
     except FileNotFoundError as e:
         print(f"Error: Dataset file not found. Make sure the 'datasets' folder is in the correct location. Details: {e}")
         return
@@ -83,11 +89,11 @@ def train(dataset_dir="datasets", model_dir="model"):
 
     # --- 4. Save Artifacts ---
     print("Saving model and preprocessing artifacts...")
-    os.makedirs(model_dir, exist_ok=True)
-    joblib.dump(model, os.path.join(model_dir, "dementia_model.joblib"))
-    joblib.dump(scaler, os.path.join(model_dir, "scaler.joblib"))
-    joblib.dump(label_encoder, os.path.join(model_dir, "label_encoder.joblib"))
-    joblib.dump(selector, os.path.join(model_dir, "selector.joblib"))
+    model_dir.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, model_dir / "dementia_model.joblib")
+    joblib.dump(scaler, model_dir / "scaler.joblib")
+    joblib.dump(label_encoder, model_dir / "label_encoder.joblib")
+    joblib.dump(selector, model_dir / "selector.joblib")
     
     print(f"Artifacts saved successfully in '{model_dir}'.")
     print("Training process finished.")

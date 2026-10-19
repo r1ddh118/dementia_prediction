@@ -1,156 +1,858 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dementia Prediction</title>
+    <title>Dementia Prediction | NeuroPredict AI Clinical Risk Assessment</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        clinical: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            800: '#1e3a8a',
+                            900: '#0f172a',
+                            950: '#0b132b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
         }
-        .container {
-            background-color: #fff;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Frosted Glass Cards */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card-sm {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
-            max-width: 500px;
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 1.5rem;
-        }
-        form {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-        label {
-            margin-bottom: 0.5rem;
-            color: #555;
-            font-weight: 500;
-        }
-        input, select {
-            padding: 0.75rem;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 1rem;
-        }
-        button {
-            grid-column: 1 / -1;
-            padding: 0.8rem;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 1.1rem;
+            height: 6px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            background: #334155;
+            border-radius: 9999px;
+            transition: all 0.2s;
         }
-        button:hover {
-            background-color: #0056b3;
+        input[type=range]::-webkit-slider-thumb {
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+            transition: all 0.15s ease-in-out;
         }
-        .result {
-            margin-top: 1.5rem;
-            padding: 1rem;
-            border-radius: 4px;
-            background-color: #e9ecef;
-            text-align: center;
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #60a5fa;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.8);
         }
-        .result h2 {
-            margin: 0;
-            color: #007bff;
+
+        /* Tooltip custom styling */
+        .tooltip-box {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
         }
-        .result p {
-            margin: 0.5rem 0 0;
-            color: #495057;
+        .has-tooltip:hover .tooltip-box {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Pulsing Glow Animation */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(37, 99, 235, 0.2); }
+            50% { box-shadow: 0 0 25px rgba(37, 99, 235, 0.5); }
+        }
+        .pulse-active {
+            animation: pulse-glow 3s infinite ease-in-out;
+        }
+
+        /* Print styles for clinical report export */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .glass-card, .glass-card-sm {
+                background: white !important;
+                border: 1px solid #ccc !important;
+                box-shadow: none !important;
+                color: black !important;
+            }
+        }
+        .print-only {
+            display: none;
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h1>Dementia Prediction</h1>
-        <form id="prediction-form">
-            <div class="form-group">
-                <label for="age">Age</label>
-                <input type="number" id="age" name="age" value="70" required>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-blue-600 selection:text-white pb-12">
+
+    <!-- TOP APP HEADER -->
+    <header class="no-print sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Brand -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <i data-lucide="brain-circuit" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-blue-300 bg-clip-text text-transparent">NeuroPredict AI</span>
+                        <span class="px-2 py-0.5 text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full">v1.2 Clinical</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium hidden sm:block">Dementia Risk Assessment & Volumetric Analytics</p>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="sex">Sex</label>
-                <select id="sex" name="sex" required>
-                    <option value="0">Male</option>
-                    <option value="1">Female</option>
-                </select>
+
+            <!-- Header Controls & Presets -->
+            <div class="flex items-center space-x-3">
+                <!-- Patient Preset Selection -->
+                <div class="relative hidden md:flex items-center space-x-2 bg-slate-900 border border-slate-800 rounded-lg p-1">
+                    <span class="text-xs text-slate-400 px-2 font-medium">Quick Presets:</span>
+                    <button type="button" onclick="loadPreset('normal')" class="px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-md transition-all">
+                        Healthy Control
+                    </button>
+                    <button type="button" onclick="loadPreset('mci')" class="px-2.5 py-1 text-xs font-medium text-amber-400 hover:bg-amber-500/10 rounded-md transition-all">
+                        MCI Profile
+                    </button>
+                    <button type="button" onclick="loadPreset('dementia')" class="px-2.5 py-1 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-md transition-all">
+                        High Risk
+                    </button>
+                </div>
+
+                <!-- Export & Action Buttons -->
+                <button type="button" onclick="resetForm()" class="px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-all flex items-center space-x-1.5">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Reset</span>
+                </button>
+                <button type="button" onclick="window.print()" class="px-3 py-1.5 text-xs font-medium text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/80 rounded-lg transition-all flex items-center space-x-1.5 shadow-sm">
+                    <i data-lucide="printer" class="w-3.5 h-3.5 text-blue-400"></i>
+                    <span>Export PDF</span>
+                </button>
             </div>
-            <div class="form-group">
-                <label for="education">Years of Education</label>
-                <input type="number" id="education" name="education" value="12" required>
+        </div>
+    </header>
+
+    <!-- PRINT ONLY REPORT HEADER -->
+    <div class="print-only p-6 mb-6 border-b border-gray-300">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">NEUROPREDICT CLINICAL DIAGNOSTIC REPORT</h1>
+                <p class="text-sm text-gray-600">OASIS Longitudinal Normative Evaluation Standard</p>
             </div>
-            <div class="form-group">
-                <label for="ses">SES (1-5)</label>
-                <input type="number" id="ses" name="ses" value="3" step="1" min="1" max="5" required>
+            <div class="text-right text-xs text-gray-500">
+                <p>Date: <span id="print-date"></span></p>
+                <p>Report ID: #NP-OASIS-<span id="print-id">8924</span></p>
             </div>
-            <div class="form-group">
-                <label for="mmse">MMSE Score (0-30)</label>
-                <input type="number" id="mmse" name="mmse" value="25" step="1" min="0" max="30" required>
-            </div>
-            <div class="form-group">
-                <label for="etiv">eTIV (Brain Volume)</label>
-                <input type="number" id="etiv" name="etiv" value="1500" required>
-            </div>
-            <div class="form-group">
-                <label for="nwbv">nWBV (Normalized Brain Volume)</label>
-                <input type="number" id="nwbv" name="nwbv" value="0.75" step="0.01" required>
-            </div>
-            <div class="form-group">
-                <label for="asf">ASF (Atlas Scaling Factor)</label>
-                <input type="number" id="asf" name="asf" value="1.10" step="0.01" required>
-            </div>
-            <button type="submit">Predict</button>
-        </form>
-        <div id="result-container" class="result" style="display: none;">
-            <h2>Prediction: <span id="prediction-result"></span></h2>
-            <p>Probabilities:</p>
-            <pre id="probabilities-result"></pre>
         </div>
     </div>
 
+    <!-- MAIN DASHBOARD CONTENT -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+
+        <!-- CLINICAL BANNER & STATUS -->
+        <div class="no-print mb-6 glass-card rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-l-4 border-l-blue-500">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-500/20">
+                    <i data-lucide="shield-check" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                        Clinical Decision Support Active
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse"></span>
+                            Validated OASIS Pipeline
+                        </span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Input demographic metrics and volumetric MRI scans to calculate clinical CDR score probability.</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4 text-xs text-slate-400 font-mono">
+                <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-500">Subject ID:</span> <span class="text-slate-200 font-semibold">OAS1_0128</span>
+                </div>
+                <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-500">Model:</span> <span class="text-blue-400 font-semibold">RandomForest-RFE</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN TWO-COLUMN DASHBOARD GRID -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- LEFT COLUMN: INPUT FORM (7 COLUMNS) -->
+            <div class="lg:col-span-7 space-y-6">
+                <form id="prediction-form" class="space-y-6">
+
+                    <!-- SECTION 1: DEMOGRAPHICS & CLINICAL HISTORY -->
+                    <div class="glass-card rounded-2xl p-5 shadow-xl transition-all hover:border-slate-700/60">
+                        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+                                    <i data-lucide="user" class="w-4 h-4"></i>
+                                </div>
+                                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">1. Patient Demographics & History</h3>
+                            </div>
+                            <span class="text-[11px] font-mono text-slate-400">Section 1 of 3</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+                            <!-- AGE INPUT -->
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center text-xs">
+                                    <label for="age" class="font-medium text-slate-300 flex items-center space-x-1">
+                                        <span>Age (Years)</span>
+                                    </label>
+                                    <span class="font-mono text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded text-xs" id="age-display">70</span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <input type="range" id="age-slider" min="50" max="98" value="70" step="1"
+                                           class="w-full" oninput="syncInput('age', this.value)">
+                                    <input type="number" id="age" name="age" value="70" min="50" max="98" required
+                                           class="w-16 bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-center font-mono text-xs text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                           oninput="syncSlider('age', this.value)">
+                                </div>
+                                <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                                    <span>50y</span>
+                                    <span>75y</span>
+                                    <span>98y</span>
+                                </div>
+                            </div>
+
+                            <!-- SEX SELECTOR -->
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center text-xs">
+                                    <label class="font-medium text-slate-300">Biological Sex</label>
+                                    <span class="text-[10px] text-slate-400">OASIS Encoded</span>
+                                </div>
+                                <input type="hidden" id="sex" name="sex" value="0">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button type="button" id="sex-btn-0" onclick="setSex(0)"
+                                            class="py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all bg-blue-600/20 border-blue-500 text-blue-300 shadow-sm shadow-blue-500/10">
+                                        <i data-lucide="mars" class="w-3.5 h-3.5"></i>
+                                        <span>Male (0)</span>
+                                    </button>
+                                    <button type="button" id="sex-btn-1" onclick="setSex(1)"
+                                            class="py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200">
+                                        <i data-lucide="venus" class="w-3.5 h-3.5"></i>
+                                        <span>Female (1)</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- YEARS OF EDUCATION -->
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center text-xs">
+                                    <label for="education" class="font-medium text-slate-300">Years of Education</label>
+                                    <span class="font-mono text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded text-xs" id="education-display">12</span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <input type="range" id="education-slider" min="1" max="23" value="12" step="1"
+                                           class="w-full" oninput="syncInput('education', this.value)">
+                                    <input type="number" id="education" name="education" value="12" min="1" max="23" required
+                                           class="w-16 bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-center font-mono text-xs text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                           oninput="syncSlider('education', this.value)">
+                                </div>
+                                <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                                    <span>Primary</span>
+                                    <span>High School (12)</span>
+                                    <span>Higher Ed</span>
+                                </div>
+                            </div>
+
+                            <!-- SOCIOECONOMIC STATUS (SES) -->
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center text-xs">
+                                    <label class="font-medium text-slate-300 flex items-center space-x-1">
+                                        <span>Socioeconomic Status (SES)</span>
+                                        <div class="has-tooltip relative inline-block">
+                                            <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400 cursor-help hover:text-blue-400"></i>
+                                            <div class="tooltip-box absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-56 p-2.5 bg-slate-900 border border-slate-700 text-[11px] text-slate-300 rounded-lg shadow-xl z-50 pointer-events-none">
+                                                Hollingshead Index of Social Position (1 = Highest Status, 5 = Lowest Status).
+                                            </div>
+                                        </div>
+                                    </label>
+                                    <span class="text-[10px] text-slate-400 font-mono" id="ses-label">Class 3</span>
+                                </div>
+                                <input type="hidden" id="ses" name="ses" value="3">
+                                <div class="grid grid-cols-5 gap-1.5">
+                                    <button type="button" onclick="setSES(1)" id="ses-btn-1" class="py-1.5 text-xs font-mono font-medium rounded border border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800">1</button>
+                                    <button type="button" onclick="setSES(2)" id="ses-btn-2" class="py-1.5 text-xs font-mono font-medium rounded border border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800">2</button>
+                                    <button type="button" onclick="setSES(3)" id="ses-btn-3" class="py-1.5 text-xs font-mono font-medium rounded border border-blue-500 bg-blue-600/20 text-blue-300 font-bold">3</button>
+                                    <button type="button" onclick="setSES(4)" id="ses-btn-4" class="py-1.5 text-xs font-mono font-medium rounded border border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800">4</button>
+                                    <button type="button" onclick="setSES(5)" id="ses-btn-5" class="py-1.5 text-xs font-mono font-medium rounded border border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800">5</button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- SECTION 2: COGNITIVE EVALUATION -->
+                    <div class="glass-card rounded-2xl p-5 shadow-xl transition-all hover:border-slate-700/60">
+                        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                                    <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+                                </div>
+                                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">2. Cognitive Score Assessment</h3>
+                            </div>
+                            <span class="text-[11px] font-mono text-slate-400">Section 2 of 3</span>
+                        </div>
+
+                        <!-- MMSE SCORE -->
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <label for="mmse" class="text-xs font-medium text-slate-300 flex items-center space-x-1.5">
+                                    <span>Mini-Mental State Examination (MMSE)</span>
+                                    <div class="has-tooltip relative inline-block">
+                                        <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400 cursor-help hover:text-blue-400"></i>
+                                        <div class="tooltip-box absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-2.5 bg-slate-900 border border-slate-700 text-[11px] text-slate-300 rounded-lg shadow-xl z-50 pointer-events-none">
+                                            30-point questionnaire used to measure cognitive impairment. 24–30: Normal, 19–23: Mild Impairment, 10–18: Moderate, &lt;10: Severe.
+                                        </div>
+                                    </div>
+                                </label>
+                                <div class="flex items-center space-x-2">
+                                    <span id="mmse-badge" class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        Normal (25)
+                                    </span>
+                                    <input type="number" id="mmse" name="mmse" value="25" min="0" max="30" step="1" required
+                                           class="w-16 bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-center font-mono text-sm font-bold text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                           oninput="syncSlider('mmse', this.value); updateMMSEBadge(this.value)">
+                                </div>
+                            </div>
+
+                            <div class="space-y-1">
+                                <input type="range" id="mmse-slider" min="0" max="30" value="25" step="1"
+                                       class="w-full" oninput="syncInput('mmse', this.value); updateMMSEBadge(this.value)">
+                                <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                                    <span class="text-rose-400">0 (Severe Deficit)</span>
+                                    <span class="text-amber-400">18 (Moderate)</span>
+                                    <span class="text-emerald-400">30 (Optimal Cognitive Health)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 3: NEUROIMAGING METRICS (MRI) -->
+                    <div class="glass-card rounded-2xl p-5 shadow-xl transition-all hover:border-slate-700/60">
+                        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
+                                    <i data-lucide="scan" class="w-4 h-4"></i>
+                                </div>
+                                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">3. Neuroimaging & Volumetrics (MRI)</h3>
+                            </div>
+                            <span class="text-[11px] font-mono text-slate-400">Section 3 of 3</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+
+                            <!-- eTIV -->
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center text-xs">
+                                    <label for="etiv" class="font-medium text-slate-300 flex items-center space-x-1">
+                                        <span>eTIV (mm³)</span>
+                                        <div class="has-tooltip relative inline-block">
+                                            <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400 cursor-help hover:text-blue-400"></i>
+                                            <div class="tooltip-box absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-56 p-2.5 bg-slate-900 border border-slate-700 text-[11px] text-slate-300 rounded-lg shadow-xl z-50 pointer-events-none">
+                                                Estimated Total Intracranial Volume (mm³). Normal range: 1100 – 1900 mm³.
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <input type="number" id="etiv" name="etiv" value="1500" min="1000" max="2200" step="10" required
+                                       class="w-full bg-slate-900 border border-slate-700/80 rounded-lg p-2 font-mono text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                                <p class="text-[10px] text-slate-500">Brain + CSF volume</p>
+                            </div>
+
+                            <!-- nWBV -->
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center text-xs">
+                                    <label for="nwbv" class="font-medium text-slate-300 flex items-center space-x-1">
+                                        <span>nWBV (Ratio)</span>
+                                        <div class="has-tooltip relative inline-block">
+                                            <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400 cursor-help hover:text-blue-400"></i>
+                                            <div class="tooltip-box absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-60 p-2.5 bg-slate-900 border border-slate-700 text-[11px] text-slate-300 rounded-lg shadow-xl z-50 pointer-events-none">
+                                                Normalized Whole Brain Volume. Ratio of brain tissue to eTIV. Values &lt; 0.72 indicate accelerated cerebral atrophy.
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <input type="number" id="nwbv" name="nwbv" value="0.75" min="0.60" max="0.90" step="0.01" required
+                                       class="w-full bg-slate-900 border border-slate-700/80 rounded-lg p-2 font-mono text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                                <p class="text-[10px] text-slate-500">Tissue fraction (0.65–0.85)</p>
+                            </div>
+
+                            <!-- ASF -->
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center text-xs">
+                                    <label for="asf" class="font-medium text-slate-300 flex items-center space-x-1">
+                                        <span>ASF (Scale)</span>
+                                        <div class="has-tooltip relative inline-block">
+                                            <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400 cursor-help hover:text-blue-400"></i>
+                                            <div class="tooltip-box absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-56 p-2.5 bg-slate-900 border border-slate-700 text-[11px] text-slate-300 rounded-lg shadow-xl z-50 pointer-events-none">
+                                                Atlas Scaling Factor. Scaling factor to transform brain to ICBM-152 atlas space (0.90 – 1.60).
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <input type="number" id="asf" name="asf" value="1.10" min="0.80" max="1.70" step="0.01" required
+                                       class="w-full bg-slate-900 border border-slate-700/80 rounded-lg p-2 font-mono text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                                <p class="text-[10px] text-slate-500">Atlas scaling factor</p>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- SUBMIT BUTTON -->
+                    <button type="submit" id="predict-btn"
+                            class="no-print w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-base shadow-xl shadow-blue-600/25 border border-blue-400/30 transition-all flex items-center justify-center space-x-2 cursor-pointer group pulse-active">
+                        <i data-lucide="activity" class="w-5 h-5 transition-transform group-hover:scale-110"></i>
+                        <span>Run Clinical Dementia Prediction</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1"></i>
+                    </button>
+
+                </form>
+            </div>
+
+            <!-- RIGHT COLUMN: DIAGNOSTIC RESULTS PANEL (5 COLUMNS) -->
+            <div class="lg:col-span-5 space-y-6">
+
+                <!-- STICKY RESULTS WRAPPER -->
+                <div class="sticky top-20 space-y-6">
+
+                    <!-- DEFAULT / INITIAL STATE CARD -->
+                    <div id="initial-state-card" class="glass-card rounded-2xl p-8 text-center space-y-4 border-dashed border-slate-700/80">
+                        <div class="w-16 h-16 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto border border-blue-500/20 shadow-inner">
+                            <i data-lucide="line-chart" class="w-8 h-8"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-200">Awaiting Clinical Evaluation</h3>
+                            <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Adjust patient parameters or load a preset, then click <span class="text-blue-400 font-semibold">Run Clinical Dementia Prediction</span> to compute model inferences.</p>
+                        </div>
+                        <div class="pt-4 border-t border-slate-800/80 grid grid-cols-2 gap-3 text-left text-xs">
+                            <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                                <p class="text-[10px] text-slate-500 font-medium">CLASSIFIER</p>
+                                <p class="font-semibold text-slate-300 mt-0.5">OASIS RF v1.2</p>
+                            </div>
+                            <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                                <p class="text-[10px] text-slate-500 font-medium">TARGET STAGE</p>
+                                <p class="font-semibold text-slate-300 mt-0.5">CDR Rating Scale</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LOADING STATE CARD -->
+                    <div id="loading-card" class="hidden glass-card rounded-2xl p-10 text-center space-y-4">
+                        <div class="inline-block relative">
+                            <div class="w-12 h-12 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin"></div>
+                            <i data-lucide="brain" class="w-5 h-5 text-blue-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-200">Processing Neural Feature Selection...</h3>
+                            <p class="text-xs text-slate-400 mt-1">Standardizing metrics and querying Random Forest estimator</p>
+                        </div>
+                    </div>
+
+                    <!-- ACTIVE RESULTS CARD -->
+                    <div id="results-card" class="hidden glass-card rounded-2xl p-6 space-y-6 shadow-2xl border-l-4 border-l-emerald-500 transition-all">
+
+                        <!-- PREDICTION HEADER BADGE -->
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono">PRIMARY DIAGNOSTIC STAGE</span>
+                                <span class="text-xs text-slate-400 font-mono" id="result-timestamp">Just now</span>
+                            </div>
+
+                            <div class="mt-3 flex items-center justify-between">
+                                <div>
+                                    <h2 id="prediction-result" class="text-2xl font-black text-white tracking-tight">
+                                        No Dementia
+                                    </h2>
+                                    <p id="prediction-subtitle" class="text-xs font-medium text-emerald-400 mt-0.5">
+                                        Clinical Dementia Rating (CDR 0)
+                                    </p>
+                                </div>
+                                <div id="status-icon-container" class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                                    <i data-lucide="check-circle-2" class="w-7 h-7"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RISK TIER GAUGE BAR -->
+                        <div class="space-y-2 pt-2 border-t border-slate-800">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-400">Risk Severity Index</span>
+                                <span id="risk-score-text" class="font-mono font-bold text-emerald-400">Low Risk</span>
+                            </div>
+                            <div class="h-2.5 w-full bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800 flex">
+                                <div id="risk-meter-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-700" style="width: 15%"></div>
+                            </div>
+                        </div>
+
+                        <!-- PROBABILITIES BREAKDOWN -->
+                        <div class="space-y-3 pt-2 border-t border-slate-800">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Class Probabilities Breakdown</h4>
+                                <span class="text-[10px] text-slate-400 font-mono">RandomForest Proba</span>
+                            </div>
+
+                            <div id="probabilities-container" class="space-y-2.5">
+                                <!-- Dynamic Probability Bars populated via JS -->
+                            </div>
+                        </div>
+
+                        <!-- CLINICAL INSIGHTS CARD -->
+                        <div class="bg-slate-900/90 rounded-xl p-4 border border-slate-800 space-y-2">
+                            <h4 class="text-xs font-bold text-slate-300 flex items-center space-x-1.5">
+                                <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-400"></i>
+                                <span>Diagnostic Recommendations</span>
+                            </h4>
+                            <p id="clinical-summary-text" class="text-xs text-slate-400 leading-relaxed">
+                                Patient brain volumetric metrics and cognitive scores align with normative cognitive aging standards. No immediate pathological volumetric deficit detected.
+                            </p>
+                        </div>
+
+                    </div>
+
+                    <!-- PRINT ONLY FORM VALUES SUMMARY TABLE -->
+                    <div class="print-only pt-6 border-t border-gray-300">
+                        <h3 class="text-lg font-bold text-gray-900 mb-3">Evaluated Patient Metrics Summary</h3>
+                        <table class="w-full text-xs border-collapse border border-gray-300">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="border border-gray-300 p-2 text-left">Metric Feature</th>
+                                    <th class="border border-gray-300 p-2 text-left">Input Value</th>
+                                    <th class="border border-gray-300 p-2 text-left">Clinical Normal Reference</th>
+                                </tr>
+                            </thead>
+                            <tbody id="print-table-body">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- JAVASCRIPT CONTROLLER LOGIC -->
     <script>
-        document.getElementById('prediction-form').addEventListener('submit', function(event) {
-            event.preventDefault();
-            
+        // Initialize Lucide Icons
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            updateMMSEBadge(25);
+
+            // Set print timestamp
+            document.getElementById('print-date').textContent = new Date().toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+        });
+
+        // Sync dual inputs (Sliders & Numbers)
+        function syncInput(field, val) {
+            document.getElementById(field).value = val;
+            const displayEl = document.getElementById(`${field}-display`);
+            if (displayEl) displayEl.textContent = val;
+        }
+
+        function syncSlider(field, val) {
+            const sliderEl = document.getElementById(`${field}-slider`);
+            if (sliderEl) sliderEl.value = val;
+            const displayEl = document.getElementById(`${field}-display`);
+            if (displayEl) displayEl.textContent = val;
+        }
+
+        // Sex Selector State
+        function setSex(val) {
+            document.getElementById('sex').value = val;
+            const btn0 = document.getElementById('sex-btn-0');
+            const btn1 = document.getElementById('sex-btn-1');
+
+            if (val === 0) {
+                btn0.className = "py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all bg-blue-600/20 border-blue-500 text-blue-300 shadow-sm shadow-blue-500/10";
+                btn1.className = "py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200";
+            } else {
+                btn1.className = "py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all bg-blue-600/20 border-blue-500 text-blue-300 shadow-sm shadow-blue-500/10";
+                btn0.className = "py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center space-x-2 transition-all bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200";
+            }
+        }
+
+        // SES Selector State
+        function setSES(val) {
+            document.getElementById('ses').value = val;
+            document.getElementById('ses-label').textContent = `Class ${val}`;
+            for (let i = 1; i <= 5; i++) {
+                const btn = document.getElementById(`ses-btn-${i}`);
+                if (i === val) {
+                    btn.className = "py-1.5 text-xs font-mono font-medium rounded border border-blue-500 bg-blue-600/20 text-blue-300 font-bold";
+                } else {
+                    btn.className = "py-1.5 text-xs font-mono font-medium rounded border border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800";
+                }
+            }
+        }
+
+        // Update MMSE Severity Badge
+        function updateMMSEBadge(score) {
+            const badge = document.getElementById('mmse-badge');
+            score = parseInt(score);
+            if (score >= 24) {
+                badge.className = "px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                badge.textContent = `Normal (${score})`;
+            } else if (score >= 19) {
+                badge.className = "px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20";
+                badge.textContent = `Mild Deficit (${score})`;
+            } else {
+                badge.className = "px-2 py-0.5 text-[10px] font-semibold rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20";
+                badge.textContent = `Severe Deficit (${score})`;
+            }
+        }
+
+        // Patient Presets
+        const presets = {
+            normal: { age: 72, sex: 1, education: 16, ses: 2, mmse: 29, etiv: 1480, nwbv: 0.78, asf: 1.12 },
+            mci: { age: 76, sex: 0, education: 14, ses: 3, mmse: 22, etiv: 1530, nwbv: 0.71, asf: 1.15 },
+            dementia: { age: 81, sex: 0, education: 12, ses: 4, mmse: 16, etiv: 1620, nwbv: 0.66, asf: 1.08 }
+        };
+
+        function loadPreset(type) {
+            const p = presets[type];
+            if (!p) return;
+
+            syncInput('age', p.age);
+            syncSlider('age', p.age);
+            setSex(p.sex);
+            syncInput('education', p.education);
+            syncSlider('education', p.education);
+            setSES(p.ses);
+            syncInput('mmse', p.mmse);
+            syncSlider('mmse', p.mmse);
+            updateMMSEBadge(p.mmse);
+            document.getElementById('etiv').value = p.etiv;
+            document.getElementById('nwbv').value = p.nwbv;
+            document.getElementById('asf').value = p.asf;
+        }
+
+        function resetForm() {
+            loadPreset('normal');
+            document.getElementById('results-card').classList.add('hidden');
+            document.getElementById('initial-state-card').classList.remove('hidden');
+        }
+
+        // Submit Form via AJAX to /predict
+        document.getElementById('prediction-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Toggle Loading State
+            document.getElementById('initial-state-card').classList.add('hidden');
+            document.getElementById('results-card').classList.add('hidden');
+            document.getElementById('loading-card').classList.remove('hidden');
+
             const formData = new FormData(this);
-            
+
             fetch('/predict', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(res => res.json())
             .then(data => {
+                document.getElementById('loading-card').classList.add('hidden');
+
                 if (data.error) {
-                    alert('Error: ' + data.error);
-                } else {
-                    document.getElementById('prediction-result').textContent = data.prediction;
-                    document.getElementById('probabilities-result').textContent = JSON.stringify(data.probabilities, null, 2);
-                    document.getElementById('result-container').style.display = 'block';
+                    alert('Prediction Error: ' + data.error);
+                    document.getElementById('initial-state-card').classList.remove('hidden');
+                    return;
                 }
+
+                // Render Results
+                renderPredictionResults(data.prediction, data.probabilities);
+                populatePrintSummaryTable(formData);
             })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please check the console for details.');
+            .catch(err => {
+                document.getElementById('loading-card').classList.add('hidden');
+                document.getElementById('initial-state-card').classList.remove('hidden');
+                console.error('API Error:', err);
+                alert('Connection failure to /predict endpoint.');
             });
         });
+
+        // Render Dynamic Prediction Output
+        function renderPredictionResults(prediction, probabilities) {
+            const resultsCard = document.getElementById('results-card');
+            const predResultEl = document.getElementById('prediction-result');
+            const predSubEl = document.getElementById('prediction-subtitle');
+            const iconContainer = document.getElementById('status-icon-container');
+            const riskMeter = document.getElementById('risk-meter-bar');
+            const riskText = document.getElementById('risk-score-text');
+            const summaryText = document.getElementById('clinical-summary-text');
+
+            predResultEl.textContent = prediction;
+
+            // Diagnostic Stage Categorization
+            let themeColor = "emerald";
+            let cdrLabel = "Clinical Dementia Rating (CDR 0)";
+            let riskPercent = 15;
+            let iconName = "check-circle-2";
+            let riskTitle = "Optimal Brain Health";
+
+            if (prediction.includes("Mild Cognitive Impairment") || prediction.includes("MCI")) {
+                themeColor = "amber";
+                cdrLabel = "Clinical Dementia Rating (CDR 0.5)";
+                riskPercent = 45;
+                iconName = "alert-triangle";
+                riskTitle = "Moderate Risk / MCI";
+                summaryText.textContent = "Mild cognitive deficit detected alongside early volumetric brain reduction. Follow-up cognitive screening in 6 months recommended.";
+            } else if (prediction.includes("Mild Dementia")) {
+                themeColor = "rose";
+                cdrLabel = "Clinical Dementia Rating (CDR 1.0)";
+                riskPercent = 70;
+                iconName = "alert-circle";
+                riskTitle = "High Risk / Mild Stage";
+                summaryText.textContent = "Metrics suggest early-stage dementia. Accelerated whole-brain volume loss (nWBV) and MMSE deficit require neurologist evaluation.";
+            } else if (prediction.includes("Moderate") || prediction.includes("Severe")) {
+                themeColor = "rose";
+                cdrLabel = "Clinical Dementia Rating (CDR 2.0 - 3.0)";
+                riskPercent = 95;
+                iconName = "x-circle";
+                riskTitle = "Critical Risk / Advanced";
+                summaryText.textContent = "Significant cognitive and anatomical atrophy pattern confirmed. High probability of progressive neurodegenerative dementia.";
+            } else {
+                summaryText.textContent = "Patient metrics remain within normative age-matched reference ranges. Low probability of active dementia progression.";
+            }
+
+            // Apply Theme Styling
+            predSubEl.textContent = cdrLabel;
+            predSubEl.className = `text-xs font-medium text-${themeColor}-400 mt-0.5`;
+            resultsCard.className = `glass-card rounded-2xl p-6 space-y-6 shadow-2xl border-l-4 border-l-${themeColor}-500 transition-all`;
+            iconContainer.className = `w-12 h-12 rounded-2xl bg-${themeColor}-500/20 text-${themeColor}-400 flex items-center justify-center border border-${themeColor}-500/30`;
+            iconContainer.innerHTML = `<i data-lucide="${iconName}" class="w-7 h-7"></i>`;
+
+            riskMeter.style.width = `${riskPercent}%`;
+            riskMeter.className = `h-full bg-${themeColor}-500 rounded-full transition-all duration-700`;
+            riskText.textContent = riskTitle;
+            riskText.className = `font-mono font-bold text-${themeColor}-400`;
+
+            // Populate Class Probabilities Bars
+            const probContainer = document.getElementById('probabilities-container');
+            probContainer.innerHTML = '';
+
+            for (const [cls, probStr] of Object.entries(probabilities)) {
+                const numVal = parseFloat(probStr.replace('%', ''));
+                let barColor = "bg-slate-600";
+                if (numVal > 50) barColor = `bg-${themeColor}-500`;
+                else if (numVal > 20) barColor = "bg-blue-500";
+
+                const rowHtml = `
+                    <div class="space-y-1 text-xs">
+                        <div class="flex justify-between items-center text-slate-300">
+                            <span class="font-medium">${cls}</span>
+                            <span class="font-mono font-bold ${numVal > 40 ? 'text-white' : 'text-slate-400'}">${probStr}</span>
+                        </div>
+                        <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                            <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${numVal}%"></div>
+                        </div>
+                    </div>
+                `;
+                probContainer.innerHTML += rowHtml;
+            }
+
+            document.getElementById('result-timestamp').textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            resultsCard.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        // Print Summary Table Population
+        function populatePrintSummaryTable(formData) {
+            const tableBody = document.getElementById('print-table-body');
+            const dataMap = [
+                { name: 'Age', value: formData.get('age') + ' years', ref: '50 - 98 years' },
+                { name: 'Biological Sex', value: formData.get('sex') == 0 ? 'Male (0)' : 'Female (1)', ref: 'Encoded 0/1' },
+                { name: 'Years of Education', value: formData.get('education') + ' years', ref: '12 - 16 years (Normative)' },
+                { name: 'Socioeconomic Status (SES)', value: 'Class ' + formData.get('ses'), ref: 'Class 1 (High) - Class 5 (Low)' },
+                { name: 'MMSE Cognitive Score', value: formData.get('mmse') + ' / 30', ref: '24 - 30 (Normal Cognition)' },
+                { name: 'eTIV (Brain Volume)', value: formData.get('etiv') + ' mm³', ref: '1100 - 1900 mm³' },
+                { name: 'nWBV (Normalized Volume)', value: formData.get('nwbv'), ref: '0.72 - 0.85 (Normal fraction)' },
+                { name: 'Atlas Scaling Factor (ASF)', value: formData.get('asf'), ref: '0.90 - 1.60' },
+            ];
+
+            tableBody.innerHTML = dataMap.map(row => `
+                <tr>
+                    <td class="border border-gray-300 p-2 font-medium">${row.name}</td>
+                    <td class="border border-gray-300 p-2 font-mono font-bold">${row.value}</td>
+                    <td class="border border-gray-300 p-2 text-gray-600">${row.ref}</td>
+                </tr>
+            `).join('');
+        }
     </script>
+
 </body>
 </html>

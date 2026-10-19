@@ -58,7 +58,7 @@ These datasets contain demographic information, clinical assessments (like MMSE 
 2.  **Train the Model**:
     Run the training script to generate the model artifacts. This step is only required once.
     ```bash
-    python3 train.py
+    python3 src/train.py
     ```
     This will create a `model/` directory with the necessary `.joblib` files.
 
@@ -67,6 +67,8 @@ These datasets contain demographic information, clinical assessments (like MMSE 
     python3 app.py
     ```
     The application will be available at **http://localhost:5000**.
+
+    The training script reads the three OASIS workbooks from `datasets/` and writes the four model artifacts to `model/`. You can override either location when calling it from Python with `train(dataset_dir=..., model_dir=...)`. The web app reads `model/` by default; set `MODEL_DIR` if you store the artifacts elsewhere.
 
 ### Option 2: Running with Docker
 1.  **Build the Docker Image**:
@@ -83,21 +85,10 @@ These datasets contain demographic information, clinical assessments (like MMSE 
 
 ## CI/CD (GitHub Actions)
 
-Two separate workflows live in `.github/workflows/`:
+`ci.yml` runs linting, project tests, and a Docker build and smoke test on pushes and pull requests to `main` and `develop`. CI uses the checked-in model under `model/` and does not need AWS credentials.
 
-| File | Trigger | What it does |
-|------|---------|--------------|
-| `ci.yml` | push / PR to `main`, `develop` | flake8 + hadolint, `pytest` (model artifacts, Flask app, template, training, registry script), Docker build + smoke test. Needs **no** AWS access. |
-| `cd.yml` | CI succeeded on `main` (or manual run) | 1) upload `model/` to the S3 model registry, 2) build the Docker image which downloads that exact model version from the registry and push it to ECR, 3) SSH to EC2, pull and run the container on port 80 (with health check + rollback). |
+`cd.yml` runs after successful CI on `main` or by manual dispatch. It uploads the model artifacts to the versioned S3 registry, builds and pushes the matching Docker image to ECR, then deploys it to EC2 with a health check and rollback.
 
-### Repository secrets (Settings -> Secrets and variables -> Actions)
-`AWS_ACCESS_KEY_ID` (AWS access key ID; `AWS_SECRET_ACCESS` is accepted as a legacy fallback), `AWS_SECRET_ACCESS_KEY` (AWS secret access key), `AWS_REGION`, `MODEL_REGISTRY_BUCKET`, `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`
+Configure these GitHub Actions secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `MODEL_REGISTRY_BUCKET`, `EC2_HOST`, `EC2_USER`, and `EC2_SSH_KEY`. The EC2 host needs Docker and curl, and its security group must allow SSH on port 22 and HTTP on port 80.
 
-### EC2 prerequisites
-Docker installed, `EC2_USER` in the `docker` group, `curl` installed, security group allows inbound 22 (SSH) and 80 (HTTP).
-
-### Run tests locally
-```bash
-pip install -r requirements-dev.txt
-pytest
-```
+For a local Docker build, run `docker build -t dementia-prediction-app .`; it uses `model/` by default. The CD workflow selects the registry model stage when building its production image.

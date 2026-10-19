@@ -111,7 +111,7 @@ jobs:
             curl -fs http://localhost:5000/ > /dev/null && break
             sleep 2
           done
-          curl -fs http://localhost:5000/ | grep -q "Dementia Prediction"
+          curl -fs http://localhost:5000/ | grep -q "NeuroPredict AI"
           curl -fs -X POST http://localhost:5000/predict \
             -d age=70 -d sex=0 -d education=12 -d ses=3 \
             -d mmse=25 -d etiv=1500 -d nwbv=0.75 -d asf=1.10 \

@@ -147,10 +147,21 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
-          chmod 600 ~/.ssh/ec2_key
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          set -euo pipefail
+          : "${EC2_HOST:?Missing repository/environment secret EC2_HOST}"
+          : "${EC2_SSH_KEY:?Missing repository/environment secret EC2_SSH_KEY}"
+
+          SSH_DIR="$RUNNER_TEMP/cd-ssh"
+          install -d -m 700 "$SSH_DIR"
+          printf '%s\n' "$EC2_SSH_KEY" | tr -d '\r' > "$SSH_DIR/ec2_key"
+          chmod 600 "$SSH_DIR/ec2_key"
+          ssh-keygen -y -f "$SSH_DIR/ec2_key" >/dev/null
+
+          if ! ssh-keyscan -T 15 -H "$EC2_HOST" > "$SSH_DIR/known_hosts" 2>/dev/null; then
+            echo "Could not resolve or reach EC2_HOST '$EC2_HOST' on SSH port 22."
+            exit 1
+          fi
+          chmod 600 "$SSH_DIR/known_hosts"
 
       - name: Deploy container
         env:
@@ -158,14 +169,20 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
+          set -euo pipefail
+          : "${EC2_HOST:?Missing repository/environment secret EC2_HOST}"
+          : "${EC2_USER:?Missing repository/environment secret EC2_USER}"
+
+          SSH_DIR="$RUNNER_TEMP/cd-ssh"
+          SSH="ssh -i $SSH_DIR/ec2_key -o UserKnownHostsFile=$SSH_DIR/known_hosts -o StrictHostKeyChecking=yes"
           IMAGE="$REGISTRY/$ECR_REPOSITORY:$SHA"
-          SSH="ssh -i $HOME/.ssh/ec2_key $EC2_USER@$EC2_HOST"
+          REMOTE="$EC2_USER@$EC2_HOST"
 
           # Short-lived ECR token generated here; nothing persisted on the server
           aws ecr get-login-password --region "$AWS_REGION" \
-            | $SSH "docker login --username AWS --password-stdin $REGISTRY"
+            | $SSH "$REMOTE" "docker login --username AWS --password-stdin $REGISTRY"
 
-          $SSH bash -s -- "$IMAGE" "$CONTAINER_NAME" <<'REMOTE'
+          $SSH "$REMOTE" bash -s -- "$IMAGE" "$CONTAINER_NAME" <<'REMOTE'
           set -euo pipefail
           IMAGE="$1"; NAME="$2"
 
@@ -196,4 +213,4 @@ jobs:
 
       - name: Cleanup SSH key
         if: always()
-        run: rm -f ~/.ssh/ec2_key
+        run: rm -rf "$RUNNER_TEMP/cd-ssh"

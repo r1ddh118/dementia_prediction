@@ -1,0 +1,3 @@
+# Keep dataset files local for DVC; track the DVC-generated pointer/ignore files.
+/datasets/*
+!/datasets/.gitignore

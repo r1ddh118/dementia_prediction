@@ -33,3 +33,19 @@ def test_cd_uses_required_secrets(root):
     cd = (root / ".github" / "workflows" / "cd.yml").read_text()
     for s in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"):
         assert f"secrets.{s}" in cd
+
+
+def test_cd_skips_ec2_deploy_when_host_configuration_is_missing(root):
+    cd = (root / ".github" / "workflows" / "cd.yml").read_text()
+    assert "id: deploy_config" in cd
+    assert 'echo "ready=false" >> "$GITHUB_OUTPUT"' in cd
+    assert "Skipping EC2 deployment" in cd
+    assert cd.count("if: steps.deploy_config.outputs.ready == 'true'") == 4
+
+
+def test_cd_jobs_use_production_environment_secrets(root):
+    cd = yaml.safe_load((root / ".github" / "workflows" / "cd.yml").read_text())
+    assert {
+        job for job, config in cd["jobs"].items()
+        if config.get("environment") == "production"
+    } == {"upload-model", "build-and-push", "deploy"}

@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cd-productionz
+  group: cd-production
   cancel-in-progress: false
 
 env:
@@ -42,7 +42,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # AWS_SECRET_ACCESS is the repository secret containing the access key ID.
+          aws-access-key-id: ${{ secrets.AWS_SECRET_ACCESS }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
@@ -84,7 +85,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_SECRET_ACCESS }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
@@ -116,7 +117,7 @@ jobs:
             MODEL_VERSION=${{ env.SHA }}
             AWS_DEFAULT_REGION=${{ secrets.AWS_REGION }}
           secrets: |
-            aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws_access_key_id=${{ secrets.AWS_SECRET_ACCESS }}
             aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -131,7 +132,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ secrets.AWS_SECRET_ACCESS }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 

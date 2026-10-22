@@ -50,6 +50,7 @@ def test_ec2_template_creates_public_app_host_with_ecr_access(root):
     assert "ecr:GetAuthorizationToken" in template
     assert "docker pull ${ImageUri}" in template
     assert "0.0.0.0/0" in template
+    assert "Value: !Sub http://${AppInstance.PublicIp}/" in template
 
 
 def test_cd_copies_s3_model_into_the_pushed_ecr_image(root):

@@ -146,4 +146,4 @@ Outputs:
     Value: !GetAtt AppInstance.PublicIp
   AppUrl:
     Description: Public URL for the app.
-    Value: !Sub http://${AppInstance.PublicDnsName}
+    Value: !Sub http://${AppInstance.PublicIp}/

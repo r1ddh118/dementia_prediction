@@ -151,11 +151,19 @@ jobs:
           IMAGE_URI="$REGISTRY_URI:$SHA"
           echo "Deploying ECR image: $IMAGE_URI"
 
-          aws cloudformation deploy \
+          if ! aws cloudformation deploy \
             --template-file infra/ec2-app.yml \
             --stack-name dementia-prediction \
             --capabilities CAPABILITY_IAM \
-            --parameter-overrides "ImageUri=$IMAGE_URI" "ContainerName=$CONTAINER_NAME"
+            --no-fail-on-empty-changeset \
+            --parameter-overrides "ImageUri=$IMAGE_URI" "ContainerName=$CONTAINER_NAME"; then
+            echo "CloudFormation deployment failed. Recent stack events:"
+            aws cloudformation describe-stack-events \
+              --stack-name dementia-prediction \
+              --query 'StackEvents[?ResourceStatus==`CREATE_FAILED` || ResourceStatus==`UPDATE_FAILED` || ResourceStatus==`UPDATE_ROLLBACK_FAILED` || ResourceStatus==`ROLLBACK_FAILED`].[Timestamp,LogicalResourceId,ResourceStatus,ResourceStatusReason]' \
+              --output table || true
+            exit 1
+          fi
 
           APP_URL="$(aws cloudformation describe-stacks \
             --stack-name dementia-prediction \
@@ -172,7 +180,7 @@ jobs:
               echo "Deployment healthy: $APP_URL"
               {
                 echo "### App preview"
-                echo "[$APP_URL]($APP_URL)"
+                echo "[dementia.prediction]($APP_URL)"
                 echo "EC2 instance: \`$INSTANCE_ID\`"
               } >> "$GITHUB_STEP_SUMMARY"
               exit 0

@@ -151,6 +151,15 @@ jobs:
           IMAGE_URI="$REGISTRY_URI:$SHA"
           echo "Deploying ECR image: $IMAGE_URI"
 
+          STACK_STATUS="$(aws cloudformation describe-stacks \
+            --stack-name dementia-prediction \
+            --query 'Stacks[0].StackStatus' --output text 2>/dev/null || true)"
+          if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
+            echo "Removing failed initial stack before recreating it."
+            aws cloudformation delete-stack --stack-name dementia-prediction
+            aws cloudformation wait stack-delete-complete --stack-name dementia-prediction
+          fi
+
           if ! aws cloudformation deploy \
             --template-file infra/ec2-app.yml \
             --stack-name dementia-prediction \

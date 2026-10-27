@@ -23,9 +23,9 @@ env:
   CONTAINER_NAME: dementia-app
 
 jobs:
-  # ---------------------------------------------------------------- 1. model -> registry
-  upload-model:
-    name: Upload model to registry
+  # ---------------------------------------------------------------- 1. datasets -> S3 + model -> registry
+  upload-artifacts:
+    name: Upload datasets + model to S3
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: production
@@ -38,22 +38,39 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: pip install -r requirements.txt boto3
+      - run: pip install boto3
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # Prefer the standard name; accept the existing AWS_SECRET_ACCESS secret as a fallback.
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_SECRET_ACCESS }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Download datasets from S3
-        run: aws s3 sync s3://${{ secrets.DATASETS_BUCKET }}/datasets/ datasets/
+      # ---- Datasets -> DATASETS_BUCKET ----
+      - name: Ensure datasets bucket exists
+        env:
+          BUCKET: ${{ secrets.DATASETS_BUCKET }}
+        run: |
+          if ! aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+            if [ "$AWS_REGION" = "us-east-1" ]; then
+              aws s3api create-bucket --bucket "$BUCKET"
+            else
+              aws s3api create-bucket --bucket "$BUCKET" \
+                --create-bucket-configuration LocationConstraint="$AWS_REGION"
+            fi
+            aws s3api put-public-access-block --bucket "$BUCKET" \
+              --public-access-block-configuration \
+              BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+          fi
 
-      - name: Train model
-        run: python src/train.py
+      - name: Upload datasets to S3
+        run: |
+          aws s3 sync datasets/ s3://${{ secrets.DATASETS_BUCKET }}/datasets/ \
+            --exclude "*" --include "*.xlsx" \
+            --storage-class STANDARD_IA
 
+      # ---- Model -> MODEL_REGISTRY_BUCKET ----
       - name: Ensure versioned registry bucket exists
         env:
           BUCKET: ${{ secrets.MODEL_REGISTRY_BUCKET }}
@@ -82,7 +99,7 @@ jobs:
   # ---------------------------------------------------------------- 2. docker image (pulls model from registry)
   build-and-push:
     name: Build image from registry model + push to ECR
-    needs: upload-model
+    needs: upload-artifacts
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -109,8 +126,8 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      # The Dockerfile downloads the model from the registry at build time.
-      # AWS credentials are passed as BuildKit secrets (never stored in layers).
+      # The Dockerfile fetches the model from MODEL_REGISTRY_BUCKET at build time.
+      # AWS credentials are passed as BuildKit secrets (never baked into layers).
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -130,7 +147,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ---------------------------------------------------------------- 3. provision the app host and deploy
+  # ---------------------------------------------------------------- 3. provision EC2 + deploy
   deploy:
     name: Provision EC2 + deploy
     needs: build-and-push
@@ -198,25 +215,22 @@ jobs:
                 | grep -q '"prediction"'; then
               echo "Deployment healthy: $APP_URL"
               {
-                echo "### App preview"
-                echo "[dementia.prediction]($APP_URL)"
+                echo "### App deployed"
+                echo "URL: [$APP_URL]($APP_URL)"
                 echo "EC2 instance: \`$INSTANCE_ID\`"
+                echo "Model version: \`$SHA\`"
               } >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
             sleep 5
           done
 
-          echo "App readiness or prediction check failed at $APP_URL on instance $INSTANCE_ID."
-          echo "EC2 instance state:"
+          echo "Health check failed at $APP_URL"
           aws ec2 describe-instances \
             --instance-ids "$INSTANCE_ID" \
             --query 'Reservations[0].Instances[0].[State.Name,PublicIpAddress,InstanceType]' \
             --output table || true
-          echo "EC2 system console output:"
           aws ec2 get-console-output \
             --instance-id "$INSTANCE_ID" \
-            --latest \
-            --query Output \
-            --output text || true
+            --latest --query Output --output text || true
           exit 1

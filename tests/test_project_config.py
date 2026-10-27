@@ -62,9 +62,13 @@ def test_cd_copies_s3_model_into_the_pushed_ecr_image(root):
     assert "COPY --from=model-source /model/ ./model/" in dockerfile
 
 
-def test_cd_jobs_use_production_environment_secrets(root):
+def test_cd_jobs_use_repository_secrets_without_environment_scope(root):
     cd = yaml.safe_load((root / ".github" / "workflows" / "cd.yml").read_text())
-    assert {
-        job for job, config in cd["jobs"].items()
-        if config.get("environment") == "production"
-    } == {"upload-model", "build-and-push", "deploy"}
+    jobs = cd["jobs"]
+    assert set(jobs) >= {"upload-model", "build-and-push", "deploy"}
+    for name in ("upload-model", "build-and-push", "deploy"):
+        job_text = str(jobs[name])
+        assert "secrets.AWS_SECRET_ACCESS" in job_text
+        assert "secrets.AWS_SECRET_ACCESS_KEY" in job_text
+        assert "secrets.AWS_REGION" in job_text
+        assert "environment" not in jobs[name]

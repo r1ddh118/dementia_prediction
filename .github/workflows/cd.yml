@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: pip install boto3
+      - run: pip install -r requirements.txt boto3
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -47,6 +47,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_SECRET_ACCESS }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Download datasets from S3
+        run: aws s3 sync s3://${{ secrets.DATASETS_BUCKET }}/datasets/ datasets/
+
+      - name: Train model
+        run: python src/train.py
 
       - name: Ensure versioned registry bucket exists
         env:

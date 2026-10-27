@@ -62,10 +62,20 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Download datasets from S3
+        run: aws s3 sync s3://${{ secrets.DATASETS_BUCKET }}/datasets/ datasets/
+
       - name: Train model
         run: python src/train.py
 
-      # No AWS credentials needed: S3 is mocked with moto
+      # No AWS credentials needed for pytest itself: S3 is mocked with moto
       - name: Run tests
         run: >
           pytest -v
@@ -90,10 +100,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Download datasets from S3
+        run: aws s3 sync s3://${{ secrets.DATASETS_BUCKET }}/datasets/ datasets/
+
+      - name: Train model (populate ./model for Docker build context)
+        run: python src/train.py
+
       - uses: docker/setup-buildx-action@v3
 
-      # CI uses the model committed in ./model (no AWS access needed).
-      # CD builds the same Dockerfile but pulls the model from the registry.
+      # MODEL_STAGE=model-local: copies ./model from the build context into the image.
+      # CD builds the same Dockerfile but pulls the model from the registry instead.
       - name: Build image
         uses: docker/build-push-action@v6
         with:

@@ -158,6 +158,20 @@ jobs:
           STACK_STATUS="$(aws cloudformation describe-stacks \
             --stack-name dementia-prediction \
             --query 'Stacks[0].StackStatus' --output text 2>/dev/null || true)"
+
+          # A previous update left the subnet in a conflict state — skip it so
+          # CF can finish rolling back, then we deploy fresh on top.
+          if [ "$STACK_STATUS" = "UPDATE_ROLLBACK_FAILED" ]; then
+            echo "Stack is UPDATE_ROLLBACK_FAILED — continuing rollback, skipping AppPublicSubnet."
+            aws cloudformation continue-update-rollback \
+              --stack-name dementia-prediction \
+              --resources-to-skip AppPublicSubnet
+            aws cloudformation wait stack-rollback-complete \
+              --stack-name dementia-prediction
+            echo "Rollback complete. Proceeding with deploy."
+            STACK_STATUS="UPDATE_ROLLBACK_COMPLETE"
+          fi
+
           if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
             echo "Removing failed initial stack before recreating it."
             aws cloudformation delete-stack --stack-name dementia-prediction

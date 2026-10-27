@@ -32,7 +32,7 @@ def test_workflows_are_valid_yaml_and_separate(root):
 
 def test_cd_uses_required_secrets(root):
     cd = (root / ".github" / "workflows" / "cd.yml").read_text()
-    for s in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"):
+    for s in ("AWS_SECRET_ACCESS", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"):
         assert f"secrets.{s}" in cd
 
 

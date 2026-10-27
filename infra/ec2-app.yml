@@ -38,7 +38,9 @@ Resources:
     Properties:
       VpcId: !Ref AppVpc
       AvailabilityZone: !Select [0, !GetAZs ""]
-      CidrBlock: 10.0.1.0/24
+      # 10.0.1.0/24 was left behind by an earlier failed subnet replacement.
+      # Use a fresh block inside AppVpc so CloudFormation can create the subnet.
+      CidrBlock: 10.0.2.0/24
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name

@@ -39,6 +39,16 @@ jobs:
 
       - run: pip install boto3 "dvc[s3]"
 
+      - name: Validate AWS credentials configuration
+        env:
+          AWS_SECRET_ACCESS: ${{ secrets.AWS_SECRET_ACCESS }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          test -n "$AWS_SECRET_ACCESS" || { echo "Missing repository secret AWS_SECRET_ACCESS."; exit 1; }
+          test -n "$AWS_SECRET_ACCESS_KEY" || { echo "Missing repository secret AWS_SECRET_ACCESS_KEY."; exit 1; }
+          test -n "$AWS_REGION" || { echo "Missing repository secret AWS_REGION."; exit 1; }
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:

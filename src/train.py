@@ -35,10 +35,14 @@ def train(dataset_dir=None, model_dir=None):
 
     cross["Subject ID"] = cross["ID"].str.split("_MR").str[0]
     reliability["Subject ID"] = reliability["ID"].str.split("_MR").str[0]
+    # Keep the longitudinal education value used by FEATURES; renaming the
+    # cross-sectional Educ column after the merge created a duplicate EDUC
+    # column and silently expanded the scaler input from 8 to 9 features.
+    cross = cross.rename(columns={"Educ": "EDUC_cross"})
     merged = longitudinal.merge(cross, on="Subject ID", how="outer", suffixes=("_long", "_cross"))
     merged = merged.merge(reliability, on="Subject ID", how="outer", suffixes=("", "_reliability"))
     merged.drop(columns=["ID", "MRI ID"], errors="ignore", inplace=True)
-    merged.rename(columns={"Educ": "EDUC", "Delay": "MR Delay"}, inplace=True)
+    merged.rename(columns={"Delay": "MR Delay"}, inplace=True)
     merged["CDR"] = merged["CDR_long"].combine_first(merged["CDR_cross"])
     merged.drop(columns=["CDR_long", "CDR_cross"], inplace=True)
     merged["M/F_long"] = merged["M/F_long"].map({"M": 0, "F": 1})
@@ -78,7 +82,10 @@ def train(dataset_dir=None, model_dir=None):
     search = GridSearchCV(
         pipe,
         {"classifier__n_estimators": [100, 200], "classifier__min_samples_leaf": [1, 2]},
-        scoring="f1_macro", cv=GroupKFold(n_splits=n_splits), n_jobs=-1,
+        # Keep fitting in-process. Besides avoiding excess workers for this small
+        # grid, this works around resource_tracker incompatibilities in some
+        # Python 3.13 distributions.
+        scoring="f1_macro", cv=GroupKFold(n_splits=n_splits), n_jobs=1,
         refit=True, error_score="raise",
     )
     search.fit(X_train, y_train, groups=groups_train)
@@ -110,6 +117,10 @@ def train(dataset_dir=None, model_dir=None):
     baseline = {}
     for feature in FEATURES:
         values = X[feature].dropna().to_numpy(dtype=float)
+        # An entirely missing feature has no reference distribution for drift
+        # scoring. Omit it instead of failing while computing quantiles.
+        if not len(values):
+            continue
         edges = np.unique(np.quantile(values, np.linspace(0, 1, 11))).tolist()
         if len(edges) < 2:
             edges = [float(values.min()) - 1, float(values.max()) + 1]

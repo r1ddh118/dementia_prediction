@@ -1,3 +1,20 @@
 # Keep dataset files local for DVC; track the DVC-generated pointer/ignore files.
 /datasets/*
 !/datasets/.gitignore
+
+# Python and test artifacts.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Training reports are regenerated from the local dataset.
+/model/evaluation.json
+/model/drift_baseline.json
+
+model/
+
+
+# Trained model binaries are generated locally and published through the model registry.
+*.joblib

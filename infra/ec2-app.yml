@@ -12,6 +12,8 @@ Parameters:
 Resources:
   AppVpc:
     Type: AWS::EC2::VPC
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       CidrBlock: 10.42.0.0/16
       EnableDnsSupport: true
@@ -35,10 +37,14 @@ Resources:
 
   AppPublicSubnet:
     Type: AWS::EC2::Subnet
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       VpcId: !Ref AppVpc
       AvailabilityZone: !Select [0, !GetAZs ""]
-      CidrBlock: 10.42.1.0/24
+      # Derived from VPC CIDR so the value is always stable across stack updates.
+      # Fn::Cidr splits 10.42.0.0/16 into 256 /24 blocks; index 1 → 10.42.1.0/24.
+      CidrBlock: !Select [1, !Cidr [!GetAtt AppVpc.CidrBlock, 256, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name

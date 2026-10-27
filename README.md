@@ -1,96 +1,89 @@
-# Dementia Prediction Project
+# Dementia Prediction: MLOps Demonstration
 
-## Overview
-This project focuses on predicting dementia using a machine learning model. It utilizes the OASIS (Open Access Series of Imaging Studies) dataset to analyze patient demographics and cognitive decline patterns. The model is served via a Flask web application with a simple HTML/JavaScript frontend.
+This repository combines a tabular machine-learning model, a Flask prediction app, container packaging, automated CI, an S3 model artifact registry, and AWS deployment automation. It is a student MLOps project for demonstrating how a model can be packaged and served. It is not a clinically validated diagnostic system.
 
-## Dataset Description
-The project uses three datasets from OASIS:
-- `oasis_longitudinal_demographics.xlsx`
-- `oasis_cross-sectional.xlsx`
-- `oasis_cross-sectional-reliability.xlsx`
+For the detailed walkthrough, glossary, system diagram, MLOps discussion, limitations, and presentation outline, see the [Project Knowledge Base](docs/PROJECT_KNOWLEDGE_BASE.md).
 
-These datasets contain demographic information, clinical assessments (like MMSE and CDR scores), and MRI-derived features for a cohort of subjects.
+## What the application does
 
-## Project Structure
-- **`train.py`**: A script dedicated to the complete machine learning pipeline. It handles:
-    - Loading and merging the raw datasets.
-    - Preprocessing the data (imputation, encoding).
-    - Training a Random Forest classifier.
-    - Saving the trained model, scaler, label encoder, and feature selector to the `model/` directory using `joblib`.
-- **`app.py`**: The core Flask application. It:
-    - Loads the pre-trained artifacts from the `model/` directory.
-    - Serves the main user interface.
-    - Provides a `/predict` API endpoint that takes patient data, preprocesses it, and returns a dementia prediction with class probabilities.
-- **`templates/index.html`**: A single-page frontend with a form for users to input patient data. It uses JavaScript to communicate with the Flask API and display the results dynamically.
-- **`Dockerfile`**: A configuration file to build a Docker image for the application, making it portable and easy to deploy. It uses `gunicorn` as the production WSGI server.
-- **`requirements.txt`**: A list of all Python dependencies required for the project.
+The web page accepts eight demographic, cognitive, and MRI-derived fields and posts them to `POST /predict`. The Flask service applies the saved scaler and feature selector, then a saved Random Forest returns a predicted CDR-derived class and its class probabilities. The browser displays the result. `GET /` serves the page.
 
-## Methodology
-### 1. **Data Preprocessing**
-- **Merging**: The three source datasets are merged into a single DataFrame.
-- **Handling Missing Values**: Missing data in key columns is imputed using the median.
-- **Encoding Categorical Variables**: Variables like gender (`M/F`) are encoded numerically.
+The repository contains four model artifacts in `model/`: the classifier, scaler, label encoder, and RFE selector. The training script expects three OASIS Excel workbooks in `datasets/`; those data files are excluded from version control. The committed artifacts let the app and CI run without training data.
 
-### 2. **Model Training (`train.py`)**
-- **Feature & Target Split**: The data is split into features (X) and the target variable (y, which is the `CDR` score).
-- **Encoding Target**: The `CDR` text labels are converted to numerical format using `LabelEncoder`.
-- **Scaling**: Features are standardized using `StandardScaler`.
-- **Feature Selection**: `RFE` (Recursive Feature Elimination) with a `RandomForestClassifier` is used to select the top 8 most important features.
-- **Oversampling**: `RandomOverSampler` is applied to handle class imbalance in the training data.
-- **Training**: A `RandomForestClassifier` is trained on the preprocessed, resampled data.
-- **Serialization**: The trained model and all preprocessing objects (scaler, encoder, selector) are saved to disk.
+## Repository map
 
-### 3. **Deployment (`app.py`)**
-- The Flask application provides a web interface for real-time predictions.
-- It is containerized using Docker for consistent and isolated deployment environments.
+| Path | Purpose |
+| --- | --- |
+| `src/train.py` | Loads and joins the OASIS workbooks, prepares features and CDR labels, trains the model, and saves artifacts. |
+| `src/app.py` | Flask routes and inference logic. |
+| `app.py` | Root-level entry point used for local development. |
+| `templates/index.html` | Browser form and result display. |
+| `model/*.joblib` | Checked-in model and preprocessing artifacts. |
+| `scripts/model_registry.py` | Uploads and fetches versioned artifacts in S3, with a manifest and SHA-256 checks. |
+| `Dockerfile` | Builds the production Flask/Gunicorn image; supports local or S3-sourced model artifacts. |
+| `.github/workflows/ci.yml` | Lint, pytest, container build, and container smoke test. |
+| `.github/workflows/cd.yml` | Uploads artifacts, pushes the image to ECR, provisions/updates EC2, and checks the app URL. |
+| `infra/ec2-app.yml` | CloudFormation template for the VPC, public subnet, security group, EC2 instance, and instance role. |
+| `tests/` | Tests for training, inference, artifacts, registry behavior, and deployment configuration. |
 
-## Running the Project
-### Prerequisites:
-- Python 3.9+
-- Docker (for containerized deployment)
+## Run locally
 
-### Option 1: Running Locally
-1.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+Use Python 3.11 to match the CI and container runtime.
 
-2.  **Train the Model**:
-    Run the training script to generate the model artifacts. This step is only required once.
-    ```bash
-    python3 src/train.py
-    ```
-    This will create a `model/` directory with the necessary `.joblib` files.
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\\Scripts\\activate
+python -m pip install -r requirements-dev.txt
+python app.py
+```
 
-3.  **Run the Flask Application**:
-    ```bash
-    python3 app.py
-    ```
-    The application will be available at **http://localhost:5000**.
+Open <http://localhost:5000>. The app uses the committed files in `model/` by default. To use artifacts from another directory, set `MODEL_DIR` before starting the app.
 
-    The training script reads the three OASIS workbooks from `datasets/` and writes the four model artifacts to `model/`. You can override either location when calling it from Python with `train(dataset_dir=..., model_dir=...)`. The web app reads `model/` by default; set `MODEL_DIR` if you store the artifacts elsewhere.
+To retrain, keep the three expected workbooks in `datasets/` and run:
 
-### Option 2: Running with Docker
-1.  **Build the Docker Image**:
-    Make sure the Docker daemon is running.
-    ```bash
-    docker build -t dementia-prediction-app .
-    ```
+```bash
+python src/train.py
+```
 
-2.  **Run the Docker Container**:
-    ```bash
-    docker run -p 5000:5000 dementia-prediction-app
-    ```
-    The application will be available at **http://localhost:5000**.
+Training tunes Random Forest settings using grouped cross-validation, evaluates once on a held-out subject group, and writes the four `.joblib` inference artifacts plus `evaluation.json` and `drift_baseline.json` to `model/`. The JSON report includes macro F1, accuracy, per-class precision/recall/F1, confusion matrix, selected parameters, and a dataset fingerprint. The data files are not included in this repository, so training requires obtaining the OASIS files separately and placing them in the expected directory with the expected filenames. Inspect the code and data license/terms before redistributing them.
 
-## CI/CD (GitHub Actions)
+## Run with Docker
 
-`ci.yml` runs linting, project tests, and a Docker build and smoke test on pushes and pull requests to `main` and `develop`. CI uses the checked-in model under `model/` and does not need AWS credentials.
+Local Docker builds bundle the checked-in `model/` artifacts:
 
-`cd.yml` runs after successful CI on `main` or by manual dispatch. It uploads the model artifacts to the versioned S3 registry, builds and pushes the matching Docker image to ECR, then uses `infra/ec2-app.yml` to create or update a VPC and a public `t3.micro` EC2 app host. The instance pulls its image from ECR using an attached IAM role, and the workflow checks the public app URL after deployment. The stack is persistent and subsequent runs update it.
+```bash
+docker build -t dementia-prediction-app .
+docker run --rm -p 5000:5000 dementia-prediction-app
+```
 
-The model files are stored in the S3 bucket and copied into `/app/model/` inside the Docker image; ECR does not display those files separately. In the AWS console, open **Elastic Container Registry → Private registry → Repositories → `dementia-prediction` → Images**, using the same account and `AWS_REGION` configured for CD. The repository contains image tags for the commit SHA and `latest`.
+Open <http://localhost:5000>. The image runs Gunicorn, and Docker has a basic HTTP health check. A registry-sourced build is used by CD; it fetches the selected model version from S3 during image build using BuildKit secrets.
 
-Add these GitHub Actions secrets to the `production` environment: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `MODEL_REGISTRY_BUCKET`. The AWS credentials need access to S3 and ECR, plus permissions for CloudFormation, EC2/VPC, and IAM role/instance-profile creation and passing. The workflow opens public HTTP on port 80; it does not open SSH. `EC2_HOST`, `EC2_USER`, and `EC2_SSH_KEY` are not used because CD provisions and configures the host itself. The EC2 instance and related AWS resources remain billable until the CloudFormation stack is deleted.
+`GET /health` returns readiness only when the model artifacts loaded. `POST /predict` rejects missing, non-numeric, non-finite, and invalid sex values.
+`GET /metrics` exposes aggregate prediction/error counts, class counts, cumulative latency, and per-feature Population Stability Index (PSI) against the training baseline. PSI at or above `DRIFT_PSI_THRESHOLD` (default `0.25`) is returned as a drift alert and logged as a warning. Counts and histograms are stored in SQLite; raw patient inputs are never stored. By default the database is `monitoring/metrics.sqlite3`. The EC2 deployment binds `/opt/dementia-monitoring` on the host so this telemetry survives container restarts. Configure `MONITORING_DB`, `DRIFT_PSI_THRESHOLD`, and `DRIFT_MIN_PREDICTIONS` as needed. A baseline is generated by retraining; the currently checked-in model has no training dataset available to create its baseline, so drift scoring becomes available after a model is retrained and deployed with `drift_baseline.json`.
 
-For a local Docker build, run `docker build -t dementia-prediction-app .`; it uses `model/` by default. The CD workflow selects the registry model stage when building its production image.
+## CI and deployment summary
+
+On pushes and pull requests to `main` or `develop`, CI runs blocking lint checks, pytest with coverage output, and a Docker build/smoke test. The smoke test checks `/health`, the home page, and a sample `/predict` response. CI needs no AWS credentials.
+
+CD runs after a successful CI workflow on `main`, or by manual dispatch. It checks out the commit being released and then:
+
+1. Uploads the four checked-in inference artifacts and any available evaluation/drift reports to a versioned S3 prefix and writes a manifest plus `latest.json`.
+2. Builds a Docker image using that exact S3 model version and pushes commit-SHA and `latest` tags to ECR.
+3. Creates or updates the `dementia-prediction` CloudFormation stack. The EC2 instance pulls the SHA-tagged image from ECR and serves it on public HTTP port 80.
+4. Polls `/health` and submits a sample `/predict` request as deployment smoke checks.
+
+Set `AWS_ACCESS_KEY_ID` (or the workflow's legacy fallback `AWS_SECRET_ACCESS`), `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `MODEL_REGISTRY_BUCKET` as secrets in the GitHub `production` environment. The AWS identity needs access to the S3 bucket and ECR, plus CloudFormation, EC2/VPC, and IAM role/instance-profile permissions. The instance role grants ECR image-pull access. The workflow does not use SSH secrets.
+
+The CD jobs target the GitHub `production` environment. Configure required reviewers and branch restrictions in that environment's repository settings to make it an actual model/deployment approval gate; the workflow file alone cannot enforce reviewer approval. The S3 manifest records release files and SHA-256 hashes; the evaluation report also includes the prepared dataset fingerprint.
+
+The CloudFormation stack creates billable AWS resources and exposes the app over HTTP. Delete the `dementia-prediction` stack when the deployed environment is no longer needed; review retained S3 versions and ECR images separately.
+
+## Important interpretation limits
+
+- The displayed classes come from CDR labels and must not be presented as a clinical diagnosis.
+- Evaluation uses a single subject-grouped holdout plus grouped cross-validation for parameter selection. This small-data evaluation is not clinical validation and does not establish calibrated probabilities or broad generalization.
+- RFE requests eight selected features from eight inputs, so it currently retains all eight rather than reducing the feature set.
+- The UI's risk percentage and explanatory clinical language are fixed presentation logic, not model outputs or validated clinical recommendations. The probabilities returned by the classifier are model estimates and are not demonstrated to be calibrated.
+- The committed model predicts four classes. The training label mapping also defines a severe class, so retraining with severe-label rows may produce a different class set; keep the UI, tests, and trained artifacts aligned.
+- Monitoring is durable at the aggregate SQLite level and checks feature distribution drift when a training baseline is present. It does not measure outcome/label drift because deployed predictions have no ground-truth labels attached. There is no automatic retraining or metric-based release gate. The production environment can enforce human approval when configured in GitHub settings.
+- Deployment uses public HTTP without TLS. SHA-tagged images and S3 artifact versions support manual redeployment of an earlier release, but automated rollback is not implemented.

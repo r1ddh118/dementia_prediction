@@ -28,6 +28,7 @@ REQUIRED_FILES = (
     "label_encoder.joblib",
     "selector.joblib",
 )
+OPTIONAL_FILES = ("evaluation.json", "drift_baseline.json")
 
 
 def _sha256(path):
@@ -46,7 +47,7 @@ def upload(bucket, version, src="model", prefix="dementia-model", s3=None):
         raise FileNotFoundError(f"Missing model files in {src}: {missing}")
 
     files = {}
-    for name in REQUIRED_FILES:
+    for name in REQUIRED_FILES + tuple(f for f in OPTIONAL_FILES if (src / f).is_file()):
         path = src / name
         s3.upload_file(str(path), bucket, f"{prefix}/{version}/{name}")
         files[name] = _sha256(path)

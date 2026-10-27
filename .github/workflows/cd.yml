@@ -185,7 +185,11 @@ jobs:
 
           echo "Waiting for $APP_URL to become healthy (instance $INSTANCE_ID)."
           for i in $(seq 1 120); do
-            if curl -fsS "$APP_URL/" >/dev/null 2>&1; then
+            if curl -fsS "$APP_URL/health" | grep -q '"status":"ok"' \
+              && curl -fsS -X POST "$APP_URL/predict" \
+                -d age=70 -d sex=0 -d education=12 -d ses=3 \
+                -d mmse=25 -d etiv=1500 -d nwbv=0.75 -d asf=1.10 \
+                | grep -q '"prediction"'; then
               echo "Deployment healthy: $APP_URL"
               {
                 echo "### App preview"
@@ -197,7 +201,7 @@ jobs:
             sleep 5
           done
 
-          echo "App health check failed at $APP_URL on instance $INSTANCE_ID."
+          echo "App readiness or prediction check failed at $APP_URL on instance $INSTANCE_ID."
           echo "EC2 instance state:"
           aws ec2 describe-instances \
             --instance-ids "$INSTANCE_ID" \

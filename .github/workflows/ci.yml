@@ -108,9 +108,10 @@ jobs:
       - name: Smoke test
         run: |
           for i in $(seq 1 30); do
-            curl -fs http://localhost:5000/ > /dev/null && break
+            curl -fs http://localhost:5000/health > /dev/null && break
             sleep 2
           done
+          curl -fs http://localhost:5000/health | grep -q '"status":"ok"'
           curl -fs http://localhost:5000/ | grep -q "NeuroPredict AI"
           curl -fs -X POST http://localhost:5000/predict \
             -d age=70 -d sex=0 -d education=12 -d ses=3 \

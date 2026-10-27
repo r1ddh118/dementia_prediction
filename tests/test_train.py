@@ -56,8 +56,8 @@ def trained_dir(training_dataset, tmp_path_factory):
 
 def test_train_creates_all_artifacts(trained_dir):
     names = {p.name for p in trained_dir.iterdir()}
-    assert names == {"dementia_model.joblib", "scaler.joblib",
-                     "label_encoder.joblib", "selector.joblib"}
+    assert {"dementia_model.joblib", "scaler.joblib", "label_encoder.joblib",
+            "selector.joblib", "evaluation.json", "drift_baseline.json"} <= names
 
 
 def test_trained_model_is_usable(trained_dir):

@@ -7,6 +7,12 @@ def test_home_page(client):
     assert b"Dementia Prediction" in r.data
 
 
+def test_health_reports_model_readiness(client):
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "ok", "model_loaded": True}
+
+
 def test_predict_valid(client, valid_form):
     r = client.post("/predict", data=valid_form)
     assert r.status_code == 200
@@ -29,6 +35,13 @@ def test_predict_non_numeric(client, valid_form):
     r = client.post("/predict", data=valid_form)
     assert r.status_code == 400
     assert "error" in r.get_json()
+
+
+def test_predict_rejects_non_finite_values(client, valid_form):
+    valid_form["age"] = "nan"
+    response = client.post("/predict", data=valid_form)
+    assert response.status_code == 400
+    assert "finite" in response.get_json()["error"]
 
 
 def test_predict_model_not_loaded(client, valid_form, monkeypatch):

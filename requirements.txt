@@ -1,10 +1,5 @@
 scikit-learn==1.7.2
-xgboost
-matplotlib
-seaborn
 pandas
-numpy
-streamlit
 imbalanced-learn
 openpyxl
 Flask

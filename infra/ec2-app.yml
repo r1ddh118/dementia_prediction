@@ -128,10 +128,13 @@ Resources:
           #!/bin/bash
           set -euxo pipefail
           dnf install -y docker awscli
+          mkdir -p /opt/dementia-monitoring
           systemctl enable --now docker
           aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}
           docker pull ${ImageUri}
-          docker run -d --name ${ContainerName} --restart unless-stopped -p 80:5000 ${ImageUri}
+          docker run -d --name ${ContainerName} --restart unless-stopped -p 80:5000 \
+            -e MONITORING_DB=/var/lib/dementia-monitoring/metrics.sqlite3 \
+            -v /opt/dementia-monitoring:/var/lib/dementia-monitoring ${ImageUri}
       Tags:
         - Key: Name
           Value: dementia-prediction-app

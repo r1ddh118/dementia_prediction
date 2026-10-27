@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: pip install boto3
+      - run: pip install boto3 "dvc[s3]"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -47,28 +47,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # ---- Datasets -> DATASETS_BUCKET ----
-      - name: Ensure datasets bucket exists
-        env:
-          BUCKET: ${{ secrets.DATASETS_BUCKET }}
-        run: |
-          if ! aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
-            if [ "$AWS_REGION" = "us-east-1" ]; then
-              aws s3api create-bucket --bucket "$BUCKET"
-            else
-              aws s3api create-bucket --bucket "$BUCKET" \
-                --create-bucket-configuration LocationConstraint="$AWS_REGION"
-            fi
-            aws s3api put-public-access-block --bucket "$BUCKET" \
-              --public-access-block-configuration \
-              BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
-          fi
-
-      - name: Upload datasets to S3
-        run: |
-          aws s3 sync datasets/ s3://${{ secrets.DATASETS_BUCKET }}/datasets/ \
-            --exclude "*" --include "*.xlsx" \
-            --storage-class STANDARD_IA
+      # ---- Datasets: pull from DVC remote (s3://dementia-dataset-bucket/dvc) ----
+      - name: Pull datasets via DVC
+        run: dvc pull
 
       # ---- Model -> MODEL_REGISTRY_BUCKET ----
       - name: Ensure versioned registry bucket exists

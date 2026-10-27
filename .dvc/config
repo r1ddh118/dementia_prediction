@@ -1,0 +1,5 @@
+[core]
+    remote = datasets-s3
+['remote "datasets-s3"']
+    url = s3://dementia-dataset-bucket/dvc
+    region = ap-southeast-2

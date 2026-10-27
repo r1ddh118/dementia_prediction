@@ -24,7 +24,7 @@ env:
 
 jobs:
   # ---------------------------------------------------------------- 1. datasets -> S3 + model -> registry
-  upload-artifacts:
+  upload-model:
     name: Upload datasets + model to S3
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
@@ -80,7 +80,7 @@ jobs:
   # ---------------------------------------------------------------- 2. docker image (pulls model from registry)
   build-and-push:
     name: Build image from registry model + push to ECR
-    needs: upload-artifacts
+    needs: upload-model
     runs-on: ubuntu-latest
     environment: production
     steps:

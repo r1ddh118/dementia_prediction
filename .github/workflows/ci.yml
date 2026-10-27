@@ -62,6 +62,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
+      - name: Train model
+        run: python src/train.py
+
       # No AWS credentials needed: S3 is mocked with moto
       - name: Run tests
         run: >

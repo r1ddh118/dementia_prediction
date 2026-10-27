@@ -154,14 +154,9 @@ def metrics():
 @app.route('/predict', methods=['POST'])
 def predict():
     started = time.perf_counter()
-    if model is None:
-        with _metrics_lock:
-            _metrics['prediction_errors'] += 1
-        _record_error()
-        return jsonify({'error': 'Model not loaded. Please train the model first.'}), 500
 
+    # --- Validate and parse input first (before checking model readiness) ---
     try:
-        # --- Get data from form ---
         age = float(request.form['age'])
         sex = int(request.form['sex'])
         education = float(request.form['education'])
@@ -170,20 +165,26 @@ def predict():
         etiv = float(request.form['etiv'])
         nwbv = float(request.form['nwbv'])
         asf = float(request.form['asf'])
+    except (KeyError, ValueError) as e:
+        _record_error()
+        return jsonify({'error': f'Invalid or missing input field: {e}'}), 400
 
-        # --- Create input array for prediction ---
-        input_data = np.array([[age, sex, education, ses, mmse, etiv, nwbv, asf]])
-        if not np.isfinite(input_data).all():
-            with _metrics_lock:
-                _metrics['prediction_errors'] += 1
-            _record_error()
-            return jsonify({'error': 'All input values must be finite numbers.'}), 400
-        if sex not in (0, 1):
-            with _metrics_lock:
-                _metrics['prediction_errors'] += 1
-            _record_error()
-            return jsonify({'error': 'Sex must be encoded as 0 or 1.'}), 400
+    input_data = np.array([[age, sex, education, ses, mmse, etiv, nwbv, asf]])
+    if not np.isfinite(input_data).all():
+        _record_error()
+        return jsonify({'error': 'All input values must be finite numbers.'}), 400
+    if sex not in (0, 1):
+        _record_error()
+        return jsonify({'error': 'Sex must be encoded as 0 or 1.'}), 400
 
+    # --- Check model readiness after input is validated ---
+    if model is None:
+        with _metrics_lock:
+            _metrics['prediction_errors'] += 1
+        _record_error()
+        return jsonify({'error': 'Model not loaded. Please train the model first.'}), 500
+
+    try:
         # --- Preprocess the input ---
         scaled_data = scaler.transform(input_data)
         selected_data = selector.transform(scaled_data)
@@ -191,10 +192,10 @@ def predict():
         # --- Make prediction ---
         prediction_idx = model.predict(selected_data)[0]
         predicted_class = label_encoder.inverse_transform([prediction_idx])[0]
-        
+
         probabilities = model.predict_proba(selected_data)[0]
         class_labels = label_encoder.classes_
-        
+
         # Create a dictionary of class probabilities
         prob_dict = {label: f"{prob*100:.2f}%" for label, prob in zip(class_labels, probabilities)}
 
